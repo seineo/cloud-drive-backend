@@ -37,5 +37,6 @@ func init() {
 
 // InitHandlers initialize handlers with route groups and middlewares
 func InitHandlers(router *gin.Engine) {
-
+	router.Use(sessions.Sessions(sessionInfo.Name, sessionInfo.Store))
+	RegisterUsersRoutes(router)
 }

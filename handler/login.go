@@ -2,8 +2,8 @@ package handler
 
 import (
 	"CloudDrive/config"
-	"CloudDrive/logic"
 	"CloudDrive/model"
+	"CloudDrive/service"
 	"context"
 	"github.com/alexedwards/argon2id"
 	"github.com/gin-contrib/sessions"
@@ -33,7 +33,7 @@ func init() {
 func register(c *gin.Context) {
 	name := c.PostForm("name")
 	email := c.PostForm("email")
-	err := logic.CheckUser(name, email)
+	err := service.CheckUser(name, email)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"err":      err.Error(),
@@ -43,7 +43,7 @@ func register(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"msg": err.Error()})
 		return
 	}
-	code, err := logic.SendCodeEmail(email)
+	code, err := service.SendCodeEmail(email)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"email": email,
@@ -85,7 +85,7 @@ func verify(c *gin.Context) {
 			return
 		}
 		// store user
-		userID, err := model.AddUser(name, email, hash)
+		userID, err := model.CreateUser(name, email, hash)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"err":  err.Error(),

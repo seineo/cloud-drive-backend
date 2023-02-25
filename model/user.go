@@ -10,10 +10,10 @@ import (
 )
 
 type User struct {
-	gorm.Model // embeds id, create at and update at timestamps
-	Name       string
-	Email      string
-	Password   string
+	gorm.Model        // embeds id, create at and update at timestamps
+	Name       string `form:"name"`
+	Email      string `form:"email"`
+	Password   string `form:"password"`
 }
 
 var db *gorm.DB
@@ -37,12 +37,7 @@ func init() {
 	}
 }
 
-func AddUser(name string, email string, password string) (uint, error) {
-	user := &User{
-		Name:     name,
-		Email:    email,
-		Password: password,
-	}
+func CreateUser(user *User) (uint, error) {
 	err := db.Create(user).Error
 	return user.ID, err
 }
