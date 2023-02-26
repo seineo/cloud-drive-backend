@@ -2,23 +2,37 @@ package handler
 
 import (
 	"CloudDrive/model"
+	"github.com/alexedwards/argon2id"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 )
 
 func RegisterUsersRoutes(router *gin.Engine) {
 	group := router.Group("/api/v1/users")
-	group.POST("", createUser)
+	group.POST("", register)
 }
 
-func createUser(c *gin.Context) {
+func register(c *gin.Context) {
 	var user model.User
 	err := c.Bind(&user)
 	if err != nil {
 		c.JSON(400, gin.H{"message": "invalid input data", "description": err.Error()})
+		return
 	}
-	userID, err := model.CreateUser(&user)
+	// hash password using argon
+	hash, err := argon2id.CreateHash(user.Password, argon2id.DefaultParams)
+	user.Password = hash
+
+	err = model.CreateUser(&user)
 	if err != nil {
 		c.JSON(500, gin.H{"message": "failed to create a user", "description": err.Error()})
+		return
 	}
-	c.JSON(200, gin.H{"userID": userID})
+
+	log.WithFields(logrus.Fields{
+		"userID":    user.ID,
+		"userName":  user.Name,
+		"userEmail": user.Email,
+	}).Info("created a new user")
+	c.JSON(200, gin.H{})
 }

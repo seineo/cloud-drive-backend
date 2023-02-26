@@ -11,9 +11,14 @@ import (
 
 type User struct {
 	gorm.Model        // embeds id, create at and update at timestamps
-	Name       string `form:"name"`
-	Email      string `form:"email"`
-	Password   string `form:"password"`
+	Name       string `form:"name" binding:"required"`
+	Email      string `form:"email" binding:"required,email"`
+	Password   string `form:"password" binding:"required"`
+}
+
+type UserLogin struct {
+	Email    string `form:"email" binding:"required,email"`
+	Password string `form:"password" binding:"required"`
 }
 
 var db *gorm.DB
@@ -25,7 +30,10 @@ func init() {
 	mysqlConfig := config.GetConfig().MySQL
 	dsn := fmt.Sprintf("%s:%s@%s(%s)/%s?parseTime=true",
 		mysqlConfig.User, mysqlConfig.Password, mysqlConfig.Protocol, mysqlConfig.Address, mysqlConfig.Database)
-	log.Debugf("sdn for mysql connnection : %s", dsn)
+	log.WithFields(logrus.Fields{
+		"dsn": dsn,
+	}).Debug("check dsn")
+
 	dbConn, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.WithError(err).Fatal("fail to connect mysql database")
@@ -37,14 +45,19 @@ func init() {
 	}
 }
 
-func CreateUser(user *User) (uint, error) {
-	err := db.Create(user).Error
-	return user.ID, err
+func CreateUser(user *User) error {
+	return db.Create(user).Error
 }
 
 func GetUserByID(id uint) (*User, error) {
 	user := &User{}
 	err := db.First(user, id).Error
+	return user, err
+}
+
+func GetUserByEmail(email string) (*User, error) {
+	user := &User{}
+	err := db.Where("email = ?", email).First(user).Error
 	return user, err
 }
 

@@ -39,4 +39,5 @@ func init() {
 func InitHandlers(router *gin.Engine) {
 	router.Use(sessions.Sessions(sessionInfo.Name, sessionInfo.Store))
 	RegisterUsersRoutes(router)
+	RegisterSessionsRoutes(router)
 }
