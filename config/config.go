@@ -33,7 +33,7 @@ func InitConfig() {
 	}
 
 	redisConfig := &RedisConfig{
-		Network:        "",
+		Network:        "tcp",
 		Addr:           "localhost:6379",
 		Password:       "",
 		DB:             0,
