@@ -1,6 +1,8 @@
 package service
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"math/rand"
 	"time"
 )
@@ -14,4 +16,17 @@ func GenerateCode(n int) string {
 		b[i] = digitBytes[rand.Intn(len(digitBytes))]
 	}
 	return string(b)
+}
+
+func SHA256Hash(args ...string) string {
+	h := sha256.New()
+	var input string
+	for _, str := range args {
+		input = input + str
+	}
+	h.Write([]byte(input))
+	// for fitting in url, we use base64 encoding
+	// if we want to display it to users, we can use hex encoding
+	// if store it as value in database, we should store raw bytes
+	return base64.URLEncoding.EncodeToString(h.Sum(nil))
 }

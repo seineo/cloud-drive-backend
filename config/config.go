@@ -1,11 +1,14 @@
 package config
 
+import "time"
+
 type Config struct {
-	ProjectName string
-	ProjectURL  string
-	Email       *EmailConfig
-	MySQL       *MySQLConfig
-	Redis       *RedisConfig
+	ProjectName         string
+	ProjectURL          string
+	AuthCodeExpiredTime time.Duration
+	Email               *EmailConfig
+	MySQL               *MySQLConfig
+	Redis               *RedisConfig
 }
 
 var config *Config
@@ -46,11 +49,14 @@ func InitConfig() {
 		AuthKey:        "secret",
 	}
 
+	authCodeExpiredTime := 15 * time.Minute
+
 	config = &Config{
-		ProjectName: projectName,
-		ProjectURL:  projectURL,
-		Email:       emailConfig,
-		MySQL:       mysqlConfig,
-		Redis:       redisConfig,
+		ProjectName:         projectName,
+		ProjectURL:          projectURL,
+		AuthCodeExpiredTime: authCodeExpiredTime,
+		Email:               emailConfig,
+		MySQL:               mysqlConfig,
+		Redis:               redisConfig,
 	}
 }
