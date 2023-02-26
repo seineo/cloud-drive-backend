@@ -9,6 +9,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type UserLogin struct {
+	Email    string `form:"email" binding:"required,email"`
+	Password string `form:"password" binding:"required"`
+}
+
 func RegisterSessionsRoutes(router *gin.Engine) {
 	group := router.Group("/api/v1/sessions")
 	group.POST("", login)
@@ -16,7 +21,7 @@ func RegisterSessionsRoutes(router *gin.Engine) {
 }
 
 func login(c *gin.Context) {
-	var userLogin model.UserLogin
+	var userLogin UserLogin
 	err := c.Bind(&userLogin)
 	if err != nil {
 		c.JSON(400, gin.H{"message": "invalid input data", "description": err.Error()})

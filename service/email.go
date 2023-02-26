@@ -6,6 +6,9 @@ import (
 	"github.com/sirupsen/logrus"
 	"gopkg.in/gomail.v2"
 	"html/template"
+	"path"
+	"path/filepath"
+	"runtime"
 )
 
 var emailConfig *config.EmailConfig
@@ -56,12 +59,15 @@ func SendCodeEmail(email string) (string, error) {
 		"code": code,
 	}).Debug("generated authentication code")
 
-	// get template
-	tmpl, err := template.ParseFiles("./code_email.html")
+	// load template
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		log.Fatal("No caller information")
+	}
+	tmpl, err := loadTemplate(path.Dir(filename), "code_email.html")
 	if err != nil {
 		return "", err
 	}
-
 	// load data and execute template
 	emailContent := CodeEmailContent{
 		Code:        code,
@@ -82,4 +88,16 @@ func SendCodeEmail(email string) (string, error) {
 		return "", err
 	}
 	return code, nil
+}
+
+func loadTemplate(dir string, filename string) (*template.Template, error) {
+	tmplPath := filepath.Join(dir, filename)
+	log.WithFields(logrus.Fields{
+		"absPath": tmplPath,
+	}).Debug("get template absolute path")
+	tmpl, err := template.ParseFiles(tmplPath)
+	if err != nil {
+		return nil, err
+	}
+	return tmpl, nil
 }

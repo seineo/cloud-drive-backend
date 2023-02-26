@@ -16,11 +16,6 @@ type User struct {
 	Password   string `form:"password" binding:"required"`
 }
 
-type UserLogin struct {
-	Email    string `form:"email" binding:"required,email"`
-	Password string `form:"password" binding:"required"`
-}
-
 var db *gorm.DB
 var log *logrus.Logger
 
