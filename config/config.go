@@ -1,9 +1,11 @@
 package config
 
 type Config struct {
-	Email *EmailConfig
-	MySQL *MySQLConfig
-	Redis *RedisConfig
+	ProjectName string
+	ProjectURL  string
+	Email       *EmailConfig
+	MySQL       *MySQLConfig
+	Redis       *RedisConfig
 }
 
 var config *Config
@@ -16,6 +18,9 @@ func GetConfig() *Config {
 }
 
 func InitConfig() {
+	projectName := "Only云盘"
+	projectURL := "localhost:4200"
+
 	emailConfig := &EmailConfig{
 		SMTPHost:      "smtp.qq.com",
 		SMTPPort:      465,
@@ -42,8 +47,10 @@ func InitConfig() {
 	}
 
 	config = &Config{
-		Email: emailConfig,
-		MySQL: mysqlConfig,
-		Redis: redisConfig,
+		ProjectName: projectName,
+		ProjectURL:  projectURL,
+		Email:       emailConfig,
+		MySQL:       mysqlConfig,
+		Redis:       redisConfig,
 	}
 }
