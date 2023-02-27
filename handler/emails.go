@@ -16,7 +16,7 @@ type EmailForm struct {
 func RegisterEmailsRoutes(router *gin.Engine) {
 	group := router.Group("/api/v1/emails")
 	group.POST("", sendEmail)
-	group.GET(":emailID", getEmailData)
+	group.POST(":emailID", getEmailData)
 }
 
 func sendEmail(c *gin.Context) {
@@ -61,7 +61,7 @@ func getEmailData(c *gin.Context) {
 	if emailForm.EmailType == "authCode" {
 		code, err := rdb.Get(ctx, emailID).Result()
 		if err != nil {
-			c.JSON(400, gin.H{"message": "code for input emailID not found", "description": err.Error()})
+			c.JSON(404, gin.H{"message": "code for input emailID not found", "description": err.Error()})
 			return
 		}
 		c.JSON(200, gin.H{"code": code})
