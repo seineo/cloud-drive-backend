@@ -4,6 +4,7 @@ import (
 	"CloudDrive/config"
 	"CloudDrive/service"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	"time"
 )
 
@@ -38,6 +39,8 @@ func sendEmail(c *gin.Context) {
 			c.JSON(500, gin.H{"message": "failed to store authentication code", "description": err.Error()})
 			return
 		}
+		// return emailID
+		c.JSON(200, gin.H{"emailID": emailID})
 	} else {
 		c.JSON(400, gin.H{"message": "input type is invalid"})
 		return
@@ -45,5 +48,25 @@ func sendEmail(c *gin.Context) {
 }
 
 func getEmailData(c *gin.Context) {
-
+	emailID := c.Param("emailID")
+	log.WithFields(logrus.Fields{
+		"emailID": emailID,
+	}).Debug("get emailID from url")
+	var emailForm EmailForm
+	err := c.Bind(&emailForm)
+	if err != nil {
+		c.JSON(400, gin.H{"message": "invalid input data", "description": err.Error()})
+		return
+	}
+	if emailForm.EmailType == "authCode" {
+		code, err := rdb.Get(ctx, emailID).Result()
+		if err != nil {
+			c.JSON(400, gin.H{"message": "code for input emailID not found", "description": err.Error()})
+			return
+		}
+		c.JSON(200, gin.H{"code": code})
+	} else {
+		c.JSON(400, gin.H{"message": "input type is invalid"})
+		return
+	}
 }
