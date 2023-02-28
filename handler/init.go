@@ -2,6 +2,7 @@ package handler
 
 import (
 	"CloudDrive/config"
+	"CloudDrive/middleware"
 	"CloudDrive/service"
 	"context"
 	"github.com/gin-contrib/sessions"
@@ -46,7 +47,7 @@ func init() {
 
 // InitHandlers initialize handlers with route groups and middlewares
 func InitHandlers(router *gin.Engine) {
-	router.Use(sessions.Sessions(sessionInfo.Name, sessionInfo.Store))
+	router.Use(sessions.Sessions(sessionInfo.Name, sessionInfo.Store), middleware.CORSMiddleware())
 	RegisterUsersRoutes(router)
 	RegisterSessionsRoutes(router)
 	RegisterEmailsRoutes(router)
