@@ -33,6 +33,10 @@ func login(c *gin.Context) {
 		c.JSON(401, gin.H{"message": "email not found"})
 		return
 	}
+	log.WithFields(logrus.Fields{
+		"input":  userLogin.Password,
+		"hashed": user.Password,
+	}).Debug("compare password")
 
 	match, err := argon2id.ComparePasswordAndHash(userLogin.Password, user.Password)
 	if err != nil {
@@ -56,6 +60,7 @@ func login(c *gin.Context) {
 		c.JSON(401, gin.H{"message": "wrong password"})
 		return
 	}
+	c.JSON(200, gin.H{"user": user})
 }
 
 func logout(c *gin.Context) {
@@ -70,5 +75,5 @@ func logout(c *gin.Context) {
 	log.WithFields(logrus.Fields{
 		"userID": userID,
 	}).Info("user logged out")
-	c.JSON(200, gin.H{})
+	c.Status(204)
 }

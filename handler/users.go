@@ -23,6 +23,13 @@ func register(c *gin.Context) {
 	hash, err := argon2id.CreateHash(user.Password, argon2id.DefaultParams)
 	user.Password = hash
 
+	// check whether the email has been used
+	_, err = model.GetUserByEmail(user.Email)
+	if err == nil {
+		c.JSON(409, gin.H{"message": "email has already been used"})
+		return
+	}
+
 	err = model.CreateUser(&user)
 	if err != nil {
 		c.JSON(500, gin.H{"message": "failed to create a user", "description": err.Error()})
@@ -34,5 +41,5 @@ func register(c *gin.Context) {
 		"userName":  user.Name,
 		"userEmail": user.Email,
 	}).Info("created a new user")
-	c.JSON(200, gin.H{})
+	c.JSON(200, gin.H{"user": user})
 }
