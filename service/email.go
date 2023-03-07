@@ -79,9 +79,9 @@ func SendCodeEmail(email string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	log.WithFields(logrus.Fields{
-		"body": buf.String(),
-	}).Debug("get code email body")
+	//log.WithFields(logrus.Fields{
+	//	"body": buf.String(),
+	//}).Debug("get code email body")
 	// send email using template output
 	err = sendEmail([]string{email}, subject, buf.String())
 	if err != nil {
