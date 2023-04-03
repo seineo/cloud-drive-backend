@@ -22,7 +22,7 @@ var log *logrus.Logger
 func init() {
 	log = service.GetLogger()
 	// mysql
-	mysqlConfig := config.GetConfig().MySQL
+	mysqlConfig := config.GetConfig().Storage.MySQL
 	dsn := fmt.Sprintf("%s:%s@%s(%s)/%s?parseTime=true",
 		mysqlConfig.User, mysqlConfig.Password, mysqlConfig.Protocol, mysqlConfig.Address, mysqlConfig.Database)
 	log.WithFields(logrus.Fields{
