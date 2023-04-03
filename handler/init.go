@@ -51,4 +51,5 @@ func InitHandlers(router *gin.Engine) {
 	RegisterUsersRoutes(router)
 	RegisterSessionsRoutes(router)
 	RegisterEmailsRoutes(router)
+	RegisterFilesRoutes(router)
 }
