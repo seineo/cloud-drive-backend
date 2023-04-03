@@ -25,7 +25,7 @@ var rdb *redis.Client
 
 func init() {
 	log = service.GetLogger()
-	redisConfig := config.GetConfig().Redis
+	redisConfig := config.GetConfig().Storage.Redis
 	// specific where session stores and the key for authentication
 	store, err := sessionRedis.NewStore(redisConfig.IdleConnection, redisConfig.Network,
 		redisConfig.Addr, redisConfig.Password, []byte(redisConfig.AuthKey))

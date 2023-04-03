@@ -7,8 +7,7 @@ type Config struct {
 	ProjectURL          string
 	AuthCodeExpiredTime time.Duration
 	Email               *EmailConfig
-	MySQL               *MySQLConfig
-	Redis               *RedisConfig
+	Storage             *StorageConfig
 }
 
 var config *Config
@@ -32,23 +31,6 @@ func InitConfig() {
 		FromEmailPsw:  "kvdqefpbeigmbbai",
 	}
 
-	mysqlConfig := &MySQLConfig{
-		User:     "root",
-		Password: "Li342204.",
-		Protocol: "unix",
-		Address:  "/tmp/mysql.sock",
-		Database: "cloud_drive",
-	}
-
-	redisConfig := &RedisConfig{
-		Network:        "tcp",
-		Addr:           "localhost:6379",
-		Password:       "",
-		DB:             0,
-		IdleConnection: 10,
-		AuthKey:        "secret",
-	}
-
 	authCodeExpiredTime := 15 * time.Minute
 
 	config = &Config{
@@ -56,7 +38,6 @@ func InitConfig() {
 		ProjectURL:          projectURL,
 		AuthCodeExpiredTime: authCodeExpiredTime,
 		Email:               emailConfig,
-		MySQL:               mysqlConfig,
-		Redis:               redisConfig,
+		Storage:             InitStorageConfig(),
 	}
 }
