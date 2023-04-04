@@ -3,24 +3,40 @@ package model
 import "time"
 
 type File struct {
-	Hash        string // MD5 hash value of file content, as primary key
+	Hash        string `gorm:"primaryKey"` // MD5 hash value of file content, as primary key
 	Name        string
-	User        string
-	ContentType string // dir, pdf, img, video...  TODO 是否要使用https://github.com/h2non/filetype
+	UserID      uint
+	ContentType string // dir, pdf, img, video...
 	Size        string
 	DirPath     string // virtual directory path shown for users
 	Location    string // real file storage path
 	CreateTime  time.Time
 }
 
-func StoreFileMetadata() {
-
+func StoreFileMetadata(file *File) error {
+	return db.Create(file).Error
 }
 
-func GetFiles() {
-
+func GetFilesMetadata(dirPath string) ([]File, error) {
+	var files []File
+	err := db.Where("dir_path = ？", dirPath).Find(&files).Error
+	return files, err
 }
 
-func GetFileLocation() {
+func GetFileMetadata(dirPath string, fileName string) (*File, error) {
+	var file File
+	err := db.Where("dir_path = ？and name = ?", dirPath, fileName).Find(&file).Error
+	return &file, err
+}
 
+func GetFileLocation(dirPath string, fileName string) (string, error) {
+	var file File
+	err := db.Where("dir_path = ? and name = ?", dirPath, fileName).First(&file).Error
+	return file.Location, err
+}
+
+func FileExists(hash string) (bool, error) {
+	var file File
+	result := db.Where("hash = ?", hash).First(&file)
+	return result.RowsAffected == 1, result.Error
 }

@@ -18,6 +18,7 @@ func GenerateCode(n int) string {
 	return string(b)
 }
 
+// SHA256Hash concat strings and hash them using SHA256
 func SHA256Hash(args ...string) string {
 	h := sha256.New()
 	var input string
