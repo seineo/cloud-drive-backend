@@ -16,15 +16,15 @@ func CreateUser(user *User) error {
 }
 
 func GetUserByID(id uint) (*User, error) {
-	user := &User{}
-	err := db.First(user, id).Error
-	return user, err
+	var user User
+	err := db.First(&user, id).Error
+	return &user, err
 }
 
 func GetUserByEmail(email string) (*User, error) {
-	user := &User{}
-	err := db.Where("email = ?", email).First(user).Error
-	return user, err
+	var user User
+	err := db.Where("email = ?", email).First(&user).Error
+	return &user, err
 }
 
 func DeleteUser(email string) error {
