@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"os"
 	"path/filepath"
 	"time"
 )
@@ -59,14 +58,14 @@ func uploadFile(c *gin.Context) {
 		}
 		//store file metadata
 		metadata := model.File{
-			Hash:        hash,
-			Name:        fileName,
-			UserID:      userID.(uint),
-			ContentType: contentType,
-			Size:        size,
-			DirPath:     dirPath,
-			Location:    fileStoragePath,
-			CreateTime:  time.Now(),
+			Hash:       hash,
+			Name:       fileName,
+			UserID:     userID.(uint),
+			FileType:   contentType,
+			Size:       size,
+			DirPath:    dirPath,
+			Location:   fileStoragePath,
+			CreateTime: time.Now(),
 		}
 		err = model.StoreFileMetadata(&metadata)
 		if err != nil {
@@ -79,47 +78,20 @@ func uploadFile(c *gin.Context) {
 
 func getFilesMetadata(c *gin.Context) {
 	dirPath := c.Param("dirPath")
-	fileName := c.Query("fileName")
-	if fileName == "" { // get metadata of all the files under the directory
-		files, err := model.GetFilesMetadata(dirPath)
-		if err != nil {
-			c.JSON(500, gin.H{"message": fmt.Sprintf("failed to get files under dir %s", dirPath),
-				"description": err.Error()})
-			return
-		}
-		c.JSON(200, gin.H{"files": files})
-		return
-	} else { // get metadata of specific file under the directory
-		file, err := model.GetFileMetadata(dirPath, fileName)
-		if err != nil {
-			c.JSON(500, gin.H{"message": fmt.Sprintf("failed to get file %s under dir %s", fileName, dirPath),
-				"description": err.Error()})
-			return
-		}
-		c.JSON(200, gin.H{"file": *file})
+	// get metadata of all the files under the directory
+	files, err := model.GetFilesMetadata(dirPath)
+	if err != nil {
+		c.JSON(500, gin.H{"message": fmt.Sprintf("failed to get files under dir %s", dirPath),
+			"description": err.Error()})
 		return
 	}
+	c.JSON(200, gin.H{"files": files})
+	return
+
 }
 
 func getFiles(c *gin.Context) {
-	dirPath := c.Param("dirPath")
-	fileName := c.Query("fileName")
-	if fileName == "" { // archive files under the directory and return
+	//dirPath := c.Param("dirPath")
+	//fileName := c.Query("fileName")
 
-	} else { // return the specific file under the directory
-		fileLocation, err := model.GetFileLocation(dirPath, fileName)
-		if err != nil {
-			c.JSON(500, gin.H{"message": fmt.Sprintf("failed to get file %s under dir %s", fileName, dirPath),
-				"description": err.Error()})
-			return
-		}
-		data, err := os.ReadFile(fileLocation)
-		if err != nil {
-			c.JSON(500, gin.H{"message": fmt.Sprintf("failed to open file at %s", fileLocation),
-				"description": err.Error()})
-			return
-		}
-		c.JSON(200, gin.H{"file": data})
-		return
-	}
 }

@@ -1,8 +1,8 @@
 package main
 
 import (
+	"CloudDrive/config"
 	"CloudDrive/handler"
-	"CloudDrive/service"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"runtime"
@@ -11,7 +11,7 @@ import (
 var log *logrus.Logger
 
 func init() {
-	log = service.GetLogger()
+	log = config.GetConfig().Log
 }
 
 func main() {

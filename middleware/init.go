@@ -1,12 +1,12 @@
 package middleware
 
 import (
-	"CloudDrive/service"
+	"CloudDrive/config"
 	"github.com/sirupsen/logrus"
 )
 
 var log *logrus.Logger
 
 func init() {
-	log = service.GetLogger()
+	log = config.GetConfig().Log
 }

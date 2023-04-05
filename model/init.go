@@ -2,7 +2,6 @@ package model
 
 import (
 	"CloudDrive/config"
-	"CloudDrive/service"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"gorm.io/driver/mysql"
@@ -13,7 +12,7 @@ var db *gorm.DB
 var log *logrus.Logger
 
 func init() {
-	log = service.GetLogger()
+	log = config.GetConfig().Log
 	// mysql
 	mysqlConfig := config.GetConfig().Storage.MySQL
 	dsn := fmt.Sprintf("%s:%s@%s(%s)/%s?parseTime=true",
@@ -27,8 +26,14 @@ func init() {
 		log.WithError(err).Fatal("fail to connect mysql database")
 	}
 	db = dbConn
+
+	// auto migration for models, for example creating tables automatically
 	err = db.AutoMigrate(&User{})
 	if err != nil {
 		log.WithError(err).Error("fail to auto migrate model user")
+	}
+	err = db.AutoMigrate(&File{})
+	if err != nil {
+		log.WithError(err).Error("fail to auto migrate model file")
 	}
 }

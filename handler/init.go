@@ -3,7 +3,6 @@ package handler
 import (
 	"CloudDrive/config"
 	"CloudDrive/middleware"
-	"CloudDrive/service"
 	"context"
 	"github.com/gin-contrib/sessions"
 	sessionRedis "github.com/gin-contrib/sessions/redis"
@@ -24,7 +23,7 @@ var ctx = context.Background()
 var rdb *redis.Client
 
 func init() {
-	log = service.GetLogger()
+	log = config.GetConfig().Log
 	redisConfig := config.GetConfig().Storage.Redis
 	// specific where session stores and the key for authentication
 	store, err := sessionRedis.NewStore(redisConfig.IdleConnection, redisConfig.Network,

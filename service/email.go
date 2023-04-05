@@ -11,25 +11,10 @@ import (
 	"runtime"
 )
 
-var emailConfig *config.EmailConfig
-var emailSender gomail.SendCloser
-
 type CodeEmailContent struct {
 	Code        string
 	ProjectName string
 	ProjectURL  string
-}
-
-func init() {
-	log = GetLogger()
-	emailConfig = config.GetConfig().Email
-	d := gomail.NewDialer(emailConfig.SMTPHost, emailConfig.SMTPPort,
-		emailConfig.FromEmailUser, emailConfig.FromEmailPsw)
-	var err error
-	emailSender, err = d.Dial()
-	if err != nil {
-		log.WithError(err).Fatal("failed to dial smtp server")
-	}
 }
 
 func sendEmail(emails []string, subject string, body string) error {
