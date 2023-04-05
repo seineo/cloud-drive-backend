@@ -1,21 +1,12 @@
-package service
+package config
 
 import (
 	"github.com/sirupsen/logrus"
 	"os"
 )
 
-var log *logrus.Logger
-
-func GetLogger() *logrus.Logger {
-	if log == nil {
-		InitLogger()
-	}
-	return log
-}
-
-func InitLogger() {
-	log = logrus.New()
+func initLogger() *logrus.Logger {
+	log := logrus.New()
 	log.SetReportCaller(true)
 	log.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp:   true,
@@ -23,4 +14,5 @@ func InitLogger() {
 	})
 	log.SetLevel(logrus.DebugLevel)
 	log.SetOutput(os.Stdout)
+	return log
 }

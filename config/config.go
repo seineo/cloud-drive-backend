@@ -1,6 +1,9 @@
 package config
 
-import "time"
+import (
+	"github.com/sirupsen/logrus"
+	"time"
+)
 
 type Config struct {
 	ProjectName         string
@@ -8,18 +11,19 @@ type Config struct {
 	AuthCodeExpiredTime time.Duration
 	Email               *EmailConfig
 	Storage             *StorageConfig
+	Log                 *logrus.Logger
 }
 
 var config *Config
 
 func GetConfig() *Config {
 	if config == nil {
-		InitConfig()
+		initConfig()
 	}
 	return config
 }
 
-func InitConfig() {
+func initConfig() {
 	projectName := "Only云盘"
 	projectURL := "localhost:4200"
 
@@ -38,6 +42,7 @@ func InitConfig() {
 		ProjectURL:          projectURL,
 		AuthCodeExpiredTime: authCodeExpiredTime,
 		Email:               emailConfig,
-		Storage:             InitStorageConfig(),
+		Storage:             initStorageConfig(),
+		Log:                 initLogger(),
 	}
 }

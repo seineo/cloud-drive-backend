@@ -23,7 +23,7 @@ type MySQLConfig struct {
 	Database string
 }
 
-func InitStorageConfig() *StorageConfig {
+func initStorageConfig() *StorageConfig {
 	mysqlConfig := &MySQLConfig{
 		User:     "root",
 		Password: "Li342204.",
@@ -41,7 +41,8 @@ func InitStorageConfig() *StorageConfig {
 		AuthKey:        "secret",
 	}
 
-	const DiskStoragePath = "/var/OnlyCloudDrive/"
+	//const DiskStoragePath = "/var/OnlyCloudDrive/"
+	const DiskStoragePath = "/Users/liyuewei/Desktop"
 
 	return &StorageConfig{
 		Redis:           redisConfig,
