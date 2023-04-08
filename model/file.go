@@ -43,6 +43,7 @@ func GetFileLocation(dirPath string, fileName string) (string, error) {
 	return file.Location, err
 }
 
+// FileExists given hash name of the file, check whether file exists
 func FileExists(hash string) (bool, error) {
 	var file File
 	result := db.Where("hash = ?", hash).First(&file)
@@ -51,4 +52,10 @@ func FileExists(hash string) (bool, error) {
 	} else {
 		return result.RowsAffected == 1, result.Error
 	}
+}
+
+// DeleteFilesMetadata given directory path, delete the metadata of files under it
+func DeleteFilesMetadata(dirPath string) error {
+	err := db.Where("dir_path = ?", dirPath).Delete(&File{}).Error
+	return err
 }
