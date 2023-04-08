@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	"path/filepath"
 	"time"
 )
@@ -15,9 +16,10 @@ var DirStoragePath = config.GetConfig().Storage.DiskStoragePath
 
 func RegisterFilesRoutes(router *gin.Engine) {
 	group := router.Group("/api/v1/files", middleware.AuthCheck)
-	group.POST(":dirPath", uploadFile)
-	group.GET(":dirPath", getFiles)
-	group.GET("metadata/:dirPath", getFilesMetadata)
+	group.POST("data/*dirPath", uploadFile)
+	group.GET("data/*dirPath", getFiles)
+	// we don't need metadata of specific file, since front end would show all files in a directory
+	group.GET("metadata/*dirPath", getFilesMetadata)
 }
 
 func uploadFile(c *gin.Context) {
@@ -78,6 +80,9 @@ func uploadFile(c *gin.Context) {
 
 func getFilesMetadata(c *gin.Context) {
 	dirPath := c.Param("dirPath")
+	log.WithFields(logrus.Fields{
+		"dirPath": dirPath,
+	}).Info("get dirPath")
 	// get metadata of all the files under the directory
 	files, err := model.GetFilesMetadata(dirPath)
 	if err != nil {

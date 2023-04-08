@@ -50,7 +50,6 @@ func ArchiveFile(dirPath string, fileName string, dstPath string) error {
 
 	writer := zip.NewWriter(f)
 	defer writer.Close()
-	rootDir := dirPath
 	// go through all the files of the srcPath
 	walker := func(fileInfo *model.File, err error) error {
 		if err != nil {
@@ -58,29 +57,42 @@ func ArchiveFile(dirPath string, fileName string, dstPath string) error {
 		}
 		path := filepath.Join(fileInfo.DirPath, fileInfo.Name)
 		log.Debugf("walk file %s", path)
-		if fileInfo.FileType == "dir" { //  直接返回nil会忽略空目录，需要在这里创建一下目录再返回
-			_, err := writer.Create(path[len(rootDir):])
+		// get relativce path
+		relPath, err := filepath.Rel(dirPath, path)
+		if err != nil {
+			log.WithError(err).Error("failed to get relative path")
 			return err
 		}
+
+		// create file header
+		header := &zip.FileHeader{
+			Name:   relPath,
+			Method: zip.Deflate,
+		}
+		if fileInfo.FileType == "dir" { //  直接返回nil会忽略空目录，需要在这里创建一下目录再返回
+			header.Name += "/"
+			header.SetMode(0755)
+			_, err = writer.CreateHeader(header)
+			return err
+		}
+		// file type is not directory
+
+		// write file header to zip
+		zipFile, err := writer.CreateHeader(header)
+		if err != nil {
+			log.WithError(err).Error("failed to write file header")
+			return err
+		}
+		// write file content to zip
 		file, err := os.Open(fileInfo.Location)
 		if err != nil {
 			return err
 		}
 		defer file.Close()
-
-		// create path in zip should use zip root related path instead of absolute path,
-		// otherwise it will create all the parent directory
-		// TODO 可以获取srcPath的长度，然后取path[len(srcPath:] 就获得了相对路径
-		zipFile, err := writer.Create(path[len(rootDir):])
-		if err != nil {
-			return err
-		}
-
 		_, err = io.Copy(zipFile, file)
 		if err != nil {
 			return err
 		}
-
 		return nil
 	}
 	err = walkDir(dirPath, fileName, walker)

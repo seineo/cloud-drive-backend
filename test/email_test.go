@@ -1,10 +1,13 @@
-package service
+package test
 
-import "testing"
+import (
+	"CloudDrive/service"
+	"testing"
+)
 
 func TestSendCodeEmail(t *testing.T) {
 	email := "liyuewei2000@bupt.edu.cn"
-	code, err := SendCodeEmail(email)
+	code, err := service.SendCodeEmail(email)
 	if err != nil {
 		t.Error("failed to send email")
 	} else {
