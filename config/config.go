@@ -12,6 +12,7 @@ type Config struct {
 	Email               *EmailConfig
 	Storage             *StorageConfig
 	Log                 *logrus.Logger
+	MaxUploadSize       int64
 }
 
 var config *Config
@@ -35,14 +36,16 @@ func initConfig() {
 		FromEmailPsw:  "kvdqefpbeigmbbai",
 	}
 
-	authCodeExpiredTime := 15 * time.Minute
+	const AUTH_CODE_EXPIRED = 15 * time.Minute
+	const MAX_UPLOAD_SIZE = 1 << 40 // 1GB
 
 	config = &Config{
 		ProjectName:         projectName,
 		ProjectURL:          projectURL,
-		AuthCodeExpiredTime: authCodeExpiredTime,
+		AuthCodeExpiredTime: AUTH_CODE_EXPIRED,
 		Email:               emailConfig,
 		Storage:             initStorageConfig(),
 		Log:                 initLogger(),
+		MaxUploadSize:       MAX_UPLOAD_SIZE,
 	}
 }
