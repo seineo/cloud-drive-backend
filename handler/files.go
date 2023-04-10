@@ -26,45 +26,48 @@ func uploadFile(c *gin.Context) {
 	// get request data
 	fileName := c.PostForm("fileName")
 	hash := c.PostForm("hash")
-	size := c.PostForm("size")
 	contentType := c.PostForm("contentType")
 	dirPath := c.Param("dirPath")
+	if fileName == "" || hash == "" || contentType == "" || dirPath == "" {
+		c.JSON(400, gin.H{"message": "form data cannot be empty"})
+		return
+	}
 	file, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(400, gin.H{"message": "failed to upload file", "description": err.Error()})
 		return
 	}
-	fileHandler, err := file.Open()
-	if err != nil {
-		c.JSON(500, gin.H{"message": "failed to open uploaded file", "description": err.Error()})
+	// check file size
+	if file.Size > config.GetConfig().MaxUploadSize {
+		c.JSON(400, gin.H{"message": fmt.Sprintf("Uploaded file %s is too big", file.Filename)})
 		return
 	}
-	defer fileHandler.Close()
-	session := sessions.Default(c)
-	userID := session.Get("userID")
 	// check whether file already exists
 	exists, err := model.FileExists(hash)
 	if err != nil {
 		c.JSON(500, gin.H{"message": "failed to check whether file exists", "description": err.Error()})
 		return
 	}
+	// if exists, conflict
 	if exists {
 		c.JSON(409, gin.H{"message": "file exists"})
 		return
-	} else {
-		// store file
-		fileStoragePath := filepath.Join(DirStoragePath, fileName)
+	} else { // if not exists, store the file in stream
+		fileStoragePath := filepath.Join(DirStoragePath, hash)
 		if err := c.SaveUploadedFile(file, fileStoragePath); err != nil {
 			c.JSON(500, gin.H{"message": "failed to store uploaded file", "description": err.Error()})
 			return
 		}
+		// get user info
+		session := sessions.Default(c)
+		userID := session.Get("userID")
 		//store file metadata
 		metadata := model.File{
 			Hash:       hash,
 			Name:       fileName,
 			UserID:     userID.(uint),
 			FileType:   contentType,
-			Size:       size,
+			Size:       file.Size,
 			DirPath:    dirPath,
 			Location:   fileStoragePath,
 			CreateTime: time.Now(),
@@ -95,8 +98,13 @@ func getFilesMetadata(c *gin.Context) {
 
 }
 
+// download directory or file, both need its directory path and name
 func getFiles(c *gin.Context) {
 	//dirPath := c.Param("dirPath")
 	//fileName := c.Query("fileName")
-
+	//if dirPath == "" || fileName == "" {
+	//	c.JSON(400, gin.H{"message": "dirPath and fileName cannot be empty"})
+	//	return
+	//}
+	//service.ArchiveFile(dirPath, fileName, )
 }
