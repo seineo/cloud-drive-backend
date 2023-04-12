@@ -37,6 +37,7 @@ func GetFileMetadata(dirPath string, fileName string) (*File, error) {
 	return &file, err
 }
 
+// GetFileLocation return the storage path for given file
 func GetFileLocation(dirPath string, fileName string) (string, error) {
 	var file File
 	err := db.Where("dir_path = ? and name = ?", dirPath, fileName).First(&file).Error
