@@ -12,7 +12,8 @@ type Config struct {
 	Email               *EmailConfig
 	Storage             *StorageConfig
 	Log                 *logrus.Logger
-	MaxUploadSize       int64
+	MaxUploadSize       int64 // max size of uploaded file that we allow
+	ArchiveThreshold    int64
 }
 
 var config *Config
@@ -37,7 +38,8 @@ func initConfig() {
 	}
 
 	const AUTH_CODE_EXPIRED = 15 * time.Minute
-	const MAX_UPLOAD_SIZE = 1 << 40 // 1GB
+	const MAX_UPLOAD_SIZE = 1 << 40   // 1GB
+	const ARCHIVE_THRESHOLD = 1 << 20 // 128MB
 
 	config = &Config{
 		ProjectName:         projectName,
@@ -47,5 +49,6 @@ func initConfig() {
 		Storage:             initStorageConfig(),
 		Log:                 initLogger(),
 		MaxUploadSize:       MAX_UPLOAD_SIZE,
+		ArchiveThreshold:    ARCHIVE_THRESHOLD,
 	}
 }
