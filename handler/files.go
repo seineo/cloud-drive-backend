@@ -27,6 +27,7 @@ func RegisterFilesRoutes(router *gin.Engine) {
 	group.GET("data/*dirPath", getFiles)
 	// we don't need metadata of specific file, since front end would show all files in a directory
 	group.GET("metadata/*dirPath", getFilesMetadata)
+	group.POST("shared")
 }
 
 // upload file or create a directory given its directory path in url and its file/dir name in form data
@@ -106,11 +107,15 @@ func uploadFile(c *gin.Context) {
 
 func getFilesMetadata(c *gin.Context) {
 	dirPath := c.Param("dirPath")
+	// get user info
+	session := sessions.Default(c)
+	userID := session.Get("userID")
 	log.WithFields(logrus.Fields{
 		"dirPath": dirPath,
-	}).Info("get dirPath")
+		"userID":  userID,
+	}).Info("trying to get file metadata")
 	// get metadata of all the files under the directory
-	files, err := model.GetFilesMetadata(dirPath)
+	files, err := model.GetFilesMetadata(userID.(uint), dirPath)
 	if err != nil {
 		c.JSON(500, gin.H{"message": fmt.Sprintf("failed to get files under dir %s", dirPath),
 			"description": err.Error()})
@@ -131,8 +136,11 @@ func getFiles(c *gin.Context) {
 		c.JSON(400, gin.H{"message": "dirPath and fileName cannot be empty"})
 		return
 	}
+	// get user info
+	session := sessions.Default(c)
+	userID := session.Get("userID")
 	// get file metadata
-	fileInfo, err := model.GetFileMetadata(dirPath, fileName)
+	fileInfo, err := model.GetFileMetadata(userID.(uint), dirPath, fileName)
 	if err != nil {
 		c.JSON(500, gin.H{"message": "failed to get file metadata", "description": err.Error()})
 	}
@@ -143,7 +151,7 @@ func getFiles(c *gin.Context) {
 		!strings.HasPrefix(fileInfo.FileType, "image") && !strings.HasPrefix(fileInfo.FileType, "audio") &&
 		!strings.HasPrefix(fileInfo.FileType, "video")) {
 		isArchived = true
-		err = service.ArchiveFile(dirPath, fileName, filepath.Join(TempFileStoragePath, fileInfo.Hash))
+		err = service.ArchiveFile(userID.(uint), dirPath, fileName, filepath.Join(TempFileStoragePath, fileInfo.Hash))
 		if err != nil {
 			c.JSON(500, gin.H{"message": "failed to archive file", "description": err.Error()})
 			return
