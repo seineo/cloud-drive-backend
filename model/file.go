@@ -23,24 +23,24 @@ func StoreFileMetadata(file *File) error {
 
 // GetFilesMetadata when file is found, return the file list
 // when not found, return empty list without error
-func GetFilesMetadata(dirPath string) ([]File, error) {
+func GetFilesMetadata(userID uint, dirPath string) ([]File, error) {
 	var files []File
-	err := db.Where("dir_path = ?", dirPath).Find(&files).Error
+	err := db.Where("user_id = ? and dir_path = ?", userID, dirPath).Find(&files).Error
 	return files, err
 }
 
 // GetFileMetadata when file is found, return the pointer to the file,
 // when not found, raise RecordNotFound error, it should be dealt with differently from other errors
-func GetFileMetadata(dirPath string, fileName string) (*File, error) {
+func GetFileMetadata(userID uint, dirPath string, fileName string) (*File, error) {
 	var file File // it will initialize with default fields!
-	err := db.Where("dir_path = ? and name = ?", dirPath, fileName).First(&file).Error
+	err := db.Where("user_id = ? and dir_path = ? and name = ?", userID, dirPath, fileName).First(&file).Error
 	return &file, err
 }
 
 // GetFileLocation return the storage path for given file
-func GetFileLocation(dirPath string, fileName string) (string, error) {
+func GetFileLocation(userID uint, dirPath string, fileName string) (string, error) {
 	var file File
-	err := db.Where("dir_path = ? and name = ?", dirPath, fileName).First(&file).Error
+	err := db.Where("user_id = ? and dir_path = ? and name = ?", userID, dirPath, fileName).First(&file).Error
 	return file.Location, err
 }
 
@@ -56,7 +56,7 @@ func FileExists(hash string) (bool, error) {
 }
 
 // DeleteFilesMetadata given directory path, delete the metadata of files under it
-func DeleteFilesMetadata(dirPath string) error {
-	err := db.Where("dir_path = ?", dirPath).Delete(&File{}).Error
+func DeleteFilesMetadata(userID uint, dirPath string) error {
+	err := db.Where("user_id = ? and dir_path = ?", userID, dirPath).Delete(&File{}).Error
 	return err
 }
