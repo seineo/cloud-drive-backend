@@ -25,23 +25,29 @@ func StoreFileMetadata(file *File) error {
 // when not found, return empty list without error
 func GetFilesMetadata(userID uint, dirPath string) ([]File, error) {
 	var files []File
-	err := db.Where("user_id = ? and dir_path = ?", userID, dirPath).Find(&files).Error
-	return files, err
+	if err := db.Where("user_id = ? and dir_path = ?", userID, dirPath).Find(&files).Error; err != nil {
+		return nil, err
+	}
+	return files, nil
 }
 
 // GetFileMetadata when file is found, return the pointer to the file,
 // when not found, raise RecordNotFound error, it should be dealt with differently from other errors
 func GetFileMetadata(userID uint, dirPath string, fileName string) (*File, error) {
 	var file File // it will initialize with default fields!
-	err := db.Where("user_id = ? and dir_path = ? and name = ?", userID, dirPath, fileName).First(&file).Error
-	return &file, err
+	if err := db.Where("user_id = ? and dir_path = ? and name = ?", userID, dirPath, fileName).First(&file).Error; err != nil {
+		return nil, err
+	}
+	return &file, nil
 }
 
 // GetFileLocation return the storage path for given file
 func GetFileLocation(userID uint, dirPath string, fileName string) (string, error) {
 	var file File
-	err := db.Where("user_id = ? and dir_path = ? and name = ?", userID, dirPath, fileName).First(&file).Error
-	return file.Location, err
+	if err := db.Where("user_id = ? and dir_path = ? and name = ?", userID, dirPath, fileName).First(&file).Error; err != nil {
+		return "", err
+	}
+	return file.Location, nil
 }
 
 // FileExists given hash name of the file, check whether file exists
