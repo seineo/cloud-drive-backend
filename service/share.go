@@ -7,6 +7,9 @@ import (
 
 func GetShareExpiredTimePtr(expiredTime string) *time.Time {
 	// TODO parse expired time in string format
+	if expiredTime == "" {
+		return nil
+	}
 	curTime := time.Now()
 	return &curTime
 }

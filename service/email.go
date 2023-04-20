@@ -19,10 +19,12 @@ type CodeEmailContent struct {
 }
 
 type SharedEmailContent struct {
-	OwnerName  string
-	OwnerEmail string
-	UserBody   string
-	Buttons    []EmailButton
+	OwnerName   string
+	OwnerEmail  string
+	UserBody    string
+	Buttons     []EmailButton
+	ProjectName string
+	ProjectURL  string
 }
 
 type EmailButton struct {
@@ -51,7 +53,7 @@ func sendEmail(emails []string, subject string, body string) error {
 
 // SendCodeEmail sends verification code to registering users
 func SendCodeEmail(email string) (string, error) {
-	subject := fmt.Sprintf("%s-Email Confirmation", config.GetConfig().ProjectName)
+	subject := fmt.Sprintf("%s-邮件认证", config.GetConfig().ProjectName)
 	code := GenerateCode(6) // 6-digit verification code
 	log.WithFields(logrus.Fields{
 		"code": code,
@@ -90,7 +92,7 @@ func SendCodeEmail(email string) (string, error) {
 
 // SendShareEmails send share email to given target, load from local template and write with user-given body
 func SendShareEmails(ownerName string, ownerEmail string, email string, userBody string, fileNames []string, shareLinks []string) error {
-	subject := fmt.Sprintf("%s-File Sharing", config.GetConfig().ProjectName)
+	subject := fmt.Sprintf("%s-文件共享", config.GetConfig().ProjectName)
 	// load template
 	_, filename, _, ok := runtime.Caller(0)
 	if !ok {
@@ -102,17 +104,19 @@ func SendShareEmails(ownerName string, ownerEmail string, email string, userBody
 	}
 	// load data and execute template
 	var buttons []EmailButton
-	for i, _ := range fileNames {
+	for i := range fileNames {
 		buttons = append(buttons, EmailButton{
 			Name: fileNames[i],
 			Link: shareLinks[i],
 		})
 	}
 	emailContent := SharedEmailContent{
-		OwnerName:  ownerName,
-		OwnerEmail: ownerEmail,
-		UserBody:   userBody,
-		Buttons:    buttons,
+		OwnerName:   ownerName,
+		OwnerEmail:  ownerEmail,
+		UserBody:    userBody,
+		Buttons:     buttons,
+		ProjectName: config.GetConfig().ProjectName,
+		ProjectURL:  config.GetConfig().ProjectURL,
 	}
 	buf := &bytes.Buffer{}
 	err = tmpl.Execute(buf, emailContent)
