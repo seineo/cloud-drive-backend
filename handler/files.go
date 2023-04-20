@@ -226,12 +226,12 @@ func shareFiles(c *gin.Context) {
 			c.JSON(500, gin.H{"message": "failed to get file metadata", "description": err.Error()})
 			return
 		}
-		filesHash[i] = fileMetadata.Hash
+		filesHash = append(filesHash, fileMetadata.Hash)
 	}
 
 	if isLimited == "true" {
 		emails := c.PostFormArray("emails")
-		content := c.PostForm("emailContent")
+		content := c.PostForm("content")
 		// send emails to users, and generate share info
 		for i := 0; i < len(emails); i++ {
 			var sharedIDs []string
@@ -290,6 +290,7 @@ func shareFiles(c *gin.Context) {
 	// store share info to database
 	if err = model.CreateShare(&share); err != nil {
 		c.JSON(500, gin.H{"message": "failed to store share info", "description": err.Error()})
+		return
 	}
 	c.JSON(200, gin.H{"share": share})
 }

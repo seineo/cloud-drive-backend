@@ -36,4 +36,8 @@ func init() {
 	if err != nil {
 		log.WithError(err).Error("fail to auto migrate model file")
 	}
+	err = db.AutoMigrate(&Share{})
+	if err != nil {
+		log.WithError(err).Error("fail to auto migrate model share")
+	}
 }

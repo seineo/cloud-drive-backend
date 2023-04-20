@@ -137,7 +137,7 @@ func prepareFiles() {
 func clearFiles() {
 	for _, file := range files {
 		// delete metadata from mysql
-		if err := model.DeleteFilesMetadata(file.DirPath); err != nil {
+		if err := model.DeleteFilesMetadata(0, file.DirPath); err != nil {
 			log.WithError(err).Error("failed to delete file metadata from mysql")
 			return
 		}
@@ -152,7 +152,7 @@ func TestArchiveFile(t *testing.T) {
 	// prepare data: create file in disk and store metadata in mysql
 	prepareFiles()
 	// test function
-	err := service.ArchiveFile("/root", "zip-root", "/Users/liyuewei/Desktop/zip-result.zip")
+	err := service.ArchiveFile(0, "/root", "zip-root", "/Users/liyuewei/Desktop/zip-result.zip")
 	if err != nil {
 		log.WithError(err).Error("failed to zip file")
 		return

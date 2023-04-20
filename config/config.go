@@ -27,7 +27,8 @@ func GetConfig() *Config {
 
 func initConfig() {
 	projectName := "Only云盘"
-	projectURL := "localhost:4200"
+	// it should be standard url with http/https, otherwise url in email will be webdoc format
+	projectURL := "http://localhost:4200"
 
 	emailConfig := &EmailConfig{
 		SMTPHost:      "smtp.qq.com",
