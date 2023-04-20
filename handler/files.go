@@ -8,10 +8,12 @@ import (
 	"fmt"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -27,7 +29,7 @@ func RegisterFilesRoutes(router *gin.Engine) {
 	group.GET("data/*dirPath", getFiles)
 	// we don't need metadata of specific file, since front end would show all files in a directory
 	group.GET("metadata/*dirPath", getFilesMetadata)
-	group.POST("shared")
+	group.POST("share/*dirPath", shareFiles)
 }
 
 // upload file or create a directory given its directory path in url and its file/dir name in form data
@@ -105,6 +107,7 @@ func uploadFile(c *gin.Context) {
 	}
 }
 
+// get metadata of all files under given directory
 func getFilesMetadata(c *gin.Context) {
 	dirPath := c.Param("dirPath")
 	// get user info
@@ -183,4 +186,110 @@ func getFiles(c *gin.Context) {
 		defer file.Close()
 		io.Copy(c.Writer, file)
 	}
+}
+
+// share all contents under directories or specific files
+// if files are shared to registered users (type: limit),
+//
+//	it needs mail list, corresponding mail content, expired time and user role;
+//
+// otherwise (shared to the public)
+//
+//	we need user role, expired time and password(optional)
+func shareFiles(c *gin.Context) {
+	// get current user
+	session := sessions.Default(c)
+	ownerID := session.Get("userID")
+	user, err := model.GetUserByID(ownerID.(uint))
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to find user by id", "description": err.Error()})
+		return
+	}
+	// common fields
+	dirPath := c.Param("dirPath")
+	isLimited := c.PostForm("isLimited")
+	expiredTime := c.PostForm("expiredTime")
+	userRole, err := strconv.Atoi(c.PostForm("userRole"))
+	if err != nil {
+		c.JSON(400, gin.H{"message": "user role should be 0 or 1"})
+		return
+	}
+	fileNames := c.PostFormArray("fileNames")
+
+	var share model.Share
+
+	// get file hash
+	var filesHash []string
+	for i := 0; i < len(fileNames); i++ {
+		fileMetadata, err := model.GetFileMetadata(ownerID.(uint), dirPath, fileNames[i])
+		if err != nil {
+			c.JSON(500, gin.H{"message": "failed to get file metadata", "description": err.Error()})
+			return
+		}
+		filesHash[i] = fileMetadata.Hash
+	}
+
+	if isLimited == "true" {
+		emails := c.PostFormArray("emails")
+		content := c.PostForm("emailContent")
+		// send emails to users, and generate share info
+		for i := 0; i < len(emails); i++ {
+			var sharedIDs []string
+			var sharedLinks []string
+			for j := 0; j < len(fileNames); j++ {
+				// generate shared links, each file for each email has a unique link
+				sharedID := uuid.NewString()
+				sharedIDs = append(sharedIDs, sharedID)
+				sharedLink := fmt.Sprintf("%s/files/%s", config.GetConfig().ProjectURL, sharedID)
+				sharedLinks = append(sharedLinks, sharedLink)
+			}
+			// send email
+			err := service.SendShareEmails(user.Name, user.Email, emails[i], content, fileNames, sharedLinks)
+			if err != nil {
+				c.JSON(500, gin.H{"message": "failed to send file sharing email", "description": err.Error()})
+				return
+			}
+			// generate share info
+			for j := 0; j < len(fileNames); j++ {
+				sharedUser, _ := model.GetUserByEmail(emails[i])
+				share = model.Share{
+					SharedID:    sharedIDs[j],
+					FileHash:    filesHash[j],
+					OwnerID:     ownerID.(uint),
+					UserID:      service.GetSharedUserIDPtr(sharedUser),
+					UserRole:    uint(userRole),
+					Password:    nil,
+					AccessCount: 0,
+					SharedTime:  time.Now(),
+					ExpiredTime: service.GetShareExpiredTimePtr(expiredTime),
+					IsLimited:   true,
+				}
+			}
+		}
+	} else if isLimited == "false" { // shared to the public
+		password := c.PostForm("password")
+		for j := 0; j < len(fileNames); j++ {
+			sharedID := uuid.NewString()
+			share = model.Share{
+				SharedID:    sharedID,
+				FileHash:    filesHash[j],
+				OwnerID:     ownerID.(uint),
+				UserID:      nil,
+				UserRole:    uint(userRole),
+				Password:    service.GetPasswordPtr(password),
+				AccessCount: 0,
+				SharedTime:  time.Now(),
+				ExpiredTime: service.GetShareExpiredTimePtr(expiredTime),
+				IsLimited:   false,
+			}
+		}
+	} else {
+		c.JSON(400, gin.H{"message": "field `isLimited` can only either be `true` or `false`"})
+		return
+	}
+	// store share info to database
+	if err = model.CreateShare(&share); err != nil {
+		c.JSON(500, gin.H{"message": "failed to store share info", "description": err.Error()})
+	}
+	c.JSON(200, gin.H{"share": share})
 }
