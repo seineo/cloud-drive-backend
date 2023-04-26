@@ -37,7 +37,6 @@ func login(c *gin.Context) {
 		"input":  userLogin.Password,
 		"hashed": user.Password,
 	}).Debug("compare password")
-
 	match, err := argon2id.ComparePasswordAndHash(userLogin.Password, user.Password)
 	if err != nil {
 		c.JSON(500, gin.H{"message": "failed to compare password", "description": err.Error()})
@@ -57,7 +56,7 @@ func login(c *gin.Context) {
 			"userEmail": user.Email,
 		}).Info("user logged in")
 	} else {
-		c.JSON(401, gin.H{"message": "wrong password"})
+		c.JSON(400, gin.H{"message": "wrong password"})
 		return
 	}
 	c.JSON(200, gin.H{"user": user})
