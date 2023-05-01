@@ -30,6 +30,7 @@ func RegisterFilesRoutes(router *gin.Engine) {
 	// we don't need metadata of specific file, since front end would show all files in a directory
 	group.GET("metadata/*dirPath", getFilesMetadata)
 	group.POST("share/*dirPath", shareFiles)
+	group.GET("hash/:hash", fileExists)
 }
 
 // upload file or create a directory given its directory path in url and its file/dir name in form data
@@ -43,68 +44,58 @@ func uploadFile(c *gin.Context) {
 		c.JSON(400, gin.H{"message": "form data cannot be empty"})
 		return
 	}
-	// check whether file already exists
-	exists, err := model.FileExists(hash)
-	if err != nil {
-		c.JSON(500, gin.H{"message": "failed to check whether file exists", "description": err.Error()})
-		return
-	}
+
 	var metadata model.File
-	// if exists, conflict
-	if exists {
-		c.JSON(409, gin.H{"message": "file exists"})
-		return
-	} else {
-		// get user info
-		session := sessions.Default(c)
-		userID := session.Get("userID")
-		// store different metadata depending on file type
-		if fileType == "dir" {
-			metadata = model.File{
-				Hash:       hash,
-				Name:       fileName,
-				UserID:     userID.(uint),
-				FileType:   fileType,
-				Size:       0,
-				DirPath:    dirPath,
-				Location:   "",
-				CreateTime: time.Now(),
-			}
-		} else {
-			file, err := c.FormFile("file")
-			if err != nil {
-				c.JSON(400, gin.H{"message": "failed to upload file", "description": err.Error()})
-				return
-			}
-			// check file size
-			if file.Size > MaxUploadSize {
-				c.JSON(400, gin.H{"message": fmt.Sprintf("Uploaded file %s is too big", file.Filename)})
-				return
-			}
-			fileStoragePath := filepath.Join(FileStoragePath, hash)
-			if err := c.SaveUploadedFile(file, fileStoragePath); err != nil {
-				c.JSON(500, gin.H{"message": "failed to store uploaded file", "description": err.Error()})
-				return
-			}
-			//store file metadata
-			metadata = model.File{
-				Hash:       hash,
-				Name:       fileName,
-				UserID:     userID.(uint),
-				FileType:   fileType,
-				Size:       file.Size,
-				DirPath:    dirPath,
-				Location:   fileStoragePath,
-				CreateTime: time.Now(),
-			}
+
+	// get user info
+	session := sessions.Default(c)
+	userID := session.Get("userID")
+	// store different metadata depending on file type
+	if fileType == "dir" {
+		metadata = model.File{
+			Hash:       hash,
+			Name:       fileName,
+			UserID:     userID.(uint),
+			FileType:   fileType,
+			Size:       0,
+			DirPath:    dirPath,
+			Location:   "",
+			CreateTime: time.Now(),
 		}
-		err = model.StoreFileMetadata(&metadata)
+	} else {
+		file, err := c.FormFile("file")
 		if err != nil {
-			c.JSON(500, gin.H{"message": "failed to store file metadata", "description": err.Error()})
+			c.JSON(400, gin.H{"message": "failed to upload file", "description": err.Error()})
 			return
 		}
-		c.JSON(200, gin.H{"file": metadata})
+		// check file size
+		if file.Size > MaxUploadSize {
+			c.JSON(400, gin.H{"message": fmt.Sprintf("Uploaded file %s is too big", file.Filename)})
+			return
+		}
+		fileStoragePath := filepath.Join(FileStoragePath, hash)
+		if err := c.SaveUploadedFile(file, fileStoragePath); err != nil {
+			c.JSON(500, gin.H{"message": "failed to store uploaded file", "description": err.Error()})
+			return
+		}
+		//store file metadata
+		metadata = model.File{
+			Hash:       hash,
+			Name:       fileName,
+			UserID:     userID.(uint),
+			FileType:   fileType,
+			Size:       file.Size,
+			DirPath:    dirPath,
+			Location:   fileStoragePath,
+			CreateTime: time.Now(),
+		}
 	}
+	err := model.StoreFileMetadata(&metadata)
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to store file metadata", "description": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"file": metadata})
 }
 
 // get metadata of all files under given directory
@@ -293,4 +284,20 @@ func shareFiles(c *gin.Context) {
 		return
 	}
 	c.JSON(200, gin.H{"share": share})
+}
+
+func fileExists(c *gin.Context) {
+	hash := c.Param("hash")
+	exists, err := model.FileExists(hash)
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to check whether file exists", "description": err.Error()})
+		return
+	}
+	if exists {
+		c.JSON(200, gin.H{"exist": true})
+		return
+	} else {
+		c.JSON(200, gin.H{"exist": false})
+		return
+	}
 }
