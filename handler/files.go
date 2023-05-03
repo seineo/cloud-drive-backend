@@ -5,6 +5,7 @@ import (
 	"CloudDrive/middleware"
 	"CloudDrive/model"
 	"CloudDrive/service"
+	"encoding/json"
 	"fmt"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -15,6 +16,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -22,6 +24,21 @@ var FileStoragePath = config.GetConfig().Storage.DiskStoragePath
 var TempFileStoragePath = config.GetConfig().Storage.DiskTempStoragePath
 var MaxUploadSize = config.GetConfig().MaxUploadSize
 var ArchiveThreshold = config.GetConfig().ArchiveThreshold
+
+type requestChunk struct {
+	FileHash    string `form:"fileHash" binding:"required"`
+	ChunkHash   string `form:"chunkHash" binding:"required"`
+	Index       uint   `form:"index" binding:"required"`
+	TotalChunks uint   `form:"totalChunks" binding:"required"`
+	Blob        []byte `form:"blob" binding:"required"`
+}
+
+type currentChunks struct {
+	TotalChunks uint   `json:"totalChunks"`
+	Indexes     []uint `json:"indexes"`
+}
+
+var chunkMutex sync.Mutex // write currentChunks in redis
 
 func RegisterFilesRoutes(router *gin.Engine) {
 	group := router.Group("/api/v1/files", middleware.AuthCheck)
@@ -31,6 +48,7 @@ func RegisterFilesRoutes(router *gin.Engine) {
 	group.GET("metadata/*dirPath", getFilesMetadata)
 	group.POST("share/*dirPath", shareFiles)
 	group.GET("hash/:hash", fileExists)
+	group.POST("chunks", uploadFileChunk)
 }
 
 // upload file or create a directory given its directory path in url and its file/dir name in form data
@@ -286,6 +304,7 @@ func shareFiles(c *gin.Context) {
 	c.JSON(200, gin.H{"share": share})
 }
 
+// check whether file exists using hash
 func fileExists(c *gin.Context) {
 	hash := c.Param("hash")
 	exists, err := model.FileExists(hash)
@@ -300,4 +319,68 @@ func fileExists(c *gin.Context) {
 		c.JSON(200, gin.H{"exist": false})
 		return
 	}
+}
+
+// store file chunks on disk and related info in redis
+func uploadFileChunk(c *gin.Context) {
+	// get request chunk info
+	var chunk requestChunk
+	err := c.Bind(&chunk)
+	if err != nil {
+		c.JSON(400, gin.H{"message": "invalid input data", "description": err.Error()})
+		return
+	}
+	// store chunk data on disk, path format: tempDir/fileHash/chunkHash
+	tempFileDir := filepath.Join(config.GetConfig().Storage.DiskTempStoragePath, chunk.FileHash)
+	err = os.Mkdir(tempFileDir, 0644)
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to create directory for file chunks", "description": err.Error()})
+		return
+	}
+	err = os.WriteFile(chunk.ChunkHash, chunk.Blob, 0644)
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to store file chunk", "description": err.Error()})
+		return
+	}
+	log.WithFields(logrus.Fields{
+		"fileHash":  chunk.FileHash,
+		"chunkHash": chunk.ChunkHash,
+	}).Infof("stored file chunk")
+	// store chunk info in redis
+	chunkMutex.Lock()
+	result, err := rdb.Exists(ctx, chunk.FileHash).Result()
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to read file chunk info from redis", "description": err.Error()})
+		return
+	}
+	var chunkInfo currentChunks
+	if result == 1 { // key exists
+		chunkJson, err := rdb.Get(ctx, chunk.FileHash).Result()
+		if err != nil {
+			c.JSON(500, gin.H{"message": "failed to store file chunk", "description": err.Error()})
+			return
+		}
+		err = json.Unmarshal([]byte(chunkJson), &chunkInfo)
+		if err != nil {
+			c.JSON(500, gin.H{"message": "failed to unmarshal chunk info", "description": err.Error()})
+			return
+		}
+		chunkInfo.Indexes = append(chunkInfo.Indexes, chunk.Index)
+	} else {
+		chunkInfo = currentChunks{
+			TotalChunks: chunk.TotalChunks,
+			Indexes:     []uint{chunk.Index},
+		}
+	}
+	chunkJson, err := json.Marshal(chunkInfo)
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to marshal chunk info", "description": err.Error()})
+		return
+	}
+	err = rdb.Set(ctx, chunk.FileHash, string(chunkJson), 0).Err()
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to set chunk info", "description": err.Error()})
+		return
+	}
+	chunkMutex.Unlock()
 }
