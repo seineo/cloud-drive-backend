@@ -5,6 +5,7 @@ import (
 	"CloudDrive/middleware"
 	"CloudDrive/model"
 	"CloudDrive/service"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/gin-contrib/sessions"
@@ -26,11 +27,11 @@ var MaxUploadSize = config.GetConfig().MaxUploadSize
 var ArchiveThreshold = config.GetConfig().ArchiveThreshold
 
 type requestChunk struct {
-	FileHash    string `form:"fileHash" binding:"required"`
-	ChunkHash   string `form:"chunkHash" binding:"required"`
-	Index       uint   `form:"index" binding:"required"`
-	TotalChunks uint   `form:"totalChunks" binding:"required"`
-	Blob        []byte `form:"blob" binding:"required"`
+	FileHash    string `json:"fileHash" binding:"required"`
+	ChunkHash   string `json:"chunkHash" binding:"required"`
+	Index       uint   `json:"index" binding:"required"` // start from 1 to avoid binding required error when index is 0
+	TotalChunks uint   `json:"totalChunks" binding:"required"`
+	Blob        string `json:"blob" binding:"required"`
 }
 
 type currentChunks struct {
@@ -330,22 +331,8 @@ func uploadFileChunk(c *gin.Context) {
 		c.JSON(400, gin.H{"message": "invalid input data", "description": err.Error()})
 		return
 	}
-	// store chunk data on disk, path format: tempDir/fileHash/chunkHash
-	tempFileDir := filepath.Join(config.GetConfig().Storage.DiskTempStoragePath, chunk.FileHash)
-	err = os.Mkdir(tempFileDir, 0644)
-	if err != nil {
-		c.JSON(500, gin.H{"message": "failed to create directory for file chunks", "description": err.Error()})
-		return
-	}
-	err = os.WriteFile(chunk.ChunkHash, chunk.Blob, 0644)
-	if err != nil {
-		c.JSON(500, gin.H{"message": "failed to store file chunk", "description": err.Error()})
-		return
-	}
-	log.WithFields(logrus.Fields{
-		"fileHash":  chunk.FileHash,
-		"chunkHash": chunk.ChunkHash,
-	}).Infof("stored file chunk")
+	var tempFileDir = filepath.Join(config.GetConfig().Storage.DiskTempStoragePath, chunk.FileHash)
+
 	// store chunk info in redis
 	chunkMutex.Lock()
 	result, err := rdb.Exists(ctx, chunk.FileHash).Result()
@@ -354,7 +341,7 @@ func uploadFileChunk(c *gin.Context) {
 		return
 	}
 	var chunkInfo currentChunks
-	if result == 1 { // key exists
+	if result == 1 { // not the first chunk of the file
 		chunkJson, err := rdb.Get(ctx, chunk.FileHash).Result()
 		if err != nil {
 			c.JSON(500, gin.H{"message": "failed to store file chunk", "description": err.Error()})
@@ -366,10 +353,16 @@ func uploadFileChunk(c *gin.Context) {
 			return
 		}
 		chunkInfo.Indexes = append(chunkInfo.Indexes, chunk.Index)
-	} else {
+	} else { // the first chunk of the file
 		chunkInfo = currentChunks{
 			TotalChunks: chunk.TotalChunks,
 			Indexes:     []uint{chunk.Index},
+		}
+		// create directory for chunks of this file
+		err = os.Mkdir(tempFileDir, 0755)
+		if err != nil {
+			c.JSON(500, gin.H{"message": "failed to create directory for file chunks", "description": err.Error()})
+			return
 		}
 	}
 	chunkJson, err := json.Marshal(chunkInfo)
@@ -382,5 +375,21 @@ func uploadFileChunk(c *gin.Context) {
 		c.JSON(500, gin.H{"message": "failed to set chunk info", "description": err.Error()})
 		return
 	}
+	// store file chunk on disk
+	blob, err := base64.StdEncoding.DecodeString(chunk.Blob)
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to decode chunk blob data", "description": err.Error()})
+		return
+	}
+	err = os.WriteFile(filepath.Join(tempFileDir, chunk.ChunkHash), blob, 0644)
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to store file chunk", "description": err.Error()})
+		return
+	}
+	log.WithFields(logrus.Fields{
+		"fileHash":  chunk.FileHash,
+		"chunkHash": chunk.ChunkHash,
+	}).Infof("stored file chunk")
 	chunkMutex.Unlock()
+	c.JSON(200, gin.H{"message": "uploaded file chunk"})
 }
