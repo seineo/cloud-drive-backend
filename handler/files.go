@@ -50,6 +50,7 @@ func RegisterFilesRoutes(router *gin.Engine) {
 	group.POST("share/*dirPath", shareFiles)
 	group.GET("hash/:hash", fileExists)
 	group.POST("chunks", uploadFileChunk)
+	group.POST("chunks/:fileHash", mergeFileChunk)
 }
 
 // upload file or create a directory given its directory path in url and its file/dir name in form data
