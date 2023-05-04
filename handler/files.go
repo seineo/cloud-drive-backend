@@ -21,10 +21,11 @@ import (
 	"time"
 )
 
-var FileStoragePath = config.GetConfig().Storage.DiskStoragePath
-var TempFileStoragePath = config.GetConfig().Storage.DiskTempStoragePath
-var MaxUploadSize = config.GetConfig().MaxUploadSize
-var ArchiveThreshold = config.GetConfig().ArchiveThreshold
+var configs = config.GetConfig()
+var FileStoragePath = configs.Storage.DiskStoragePath
+var TempFileStoragePath = configs.Storage.DiskTempStoragePath
+var MaxUploadSize = configs.MaxUploadSize
+var ArchiveThreshold = configs.ArchiveThreshold
 
 type requestChunk struct {
 	FileHash    string `json:"fileHash" binding:"required"`
@@ -35,8 +36,8 @@ type requestChunk struct {
 }
 
 type currentChunks struct {
-	TotalChunks uint   `json:"totalChunks"`
-	Indexes     []uint `json:"indexes"`
+	TotalChunks uint            `json:"totalChunks"`
+	Indexes     map[uint]string `json:"indexes"`
 }
 
 var chunkMutex sync.Mutex // write currentChunks in redis
@@ -50,7 +51,7 @@ func RegisterFilesRoutes(router *gin.Engine) {
 	group.POST("share/*dirPath", shareFiles)
 	group.GET("hash/:hash", fileExists)
 	group.POST("chunks", uploadFileChunk)
-	group.POST("chunks/:fileHash", mergeFileChunk)
+	//group.POST("chunks/:fileHash", mergeFileChunk)
 }
 
 // upload file or create a directory given its directory path in url and its file/dir name in form data
@@ -332,7 +333,7 @@ func uploadFileChunk(c *gin.Context) {
 		c.JSON(400, gin.H{"message": "invalid input data", "description": err.Error()})
 		return
 	}
-	var tempFileDir = filepath.Join(config.GetConfig().Storage.DiskTempStoragePath, chunk.FileHash)
+	var tempFileDir = filepath.Join(TempFileStoragePath, chunk.FileHash)
 
 	// store chunk info in redis
 	chunkMutex.Lock()
@@ -353,11 +354,11 @@ func uploadFileChunk(c *gin.Context) {
 			c.JSON(500, gin.H{"message": "failed to unmarshal chunk info", "description": err.Error()})
 			return
 		}
-		chunkInfo.Indexes = append(chunkInfo.Indexes, chunk.Index)
+		chunkInfo.Indexes[chunk.Index] = chunk.ChunkHash
 	} else { // the first chunk of the file
 		chunkInfo = currentChunks{
 			TotalChunks: chunk.TotalChunks,
-			Indexes:     []uint{chunk.Index},
+			Indexes:     map[uint]string{chunk.Index: chunk.ChunkHash},
 		}
 		// create directory for chunks of this file
 		err = os.Mkdir(tempFileDir, 0755)
@@ -394,3 +395,21 @@ func uploadFileChunk(c *gin.Context) {
 	chunkMutex.Unlock()
 	c.JSON(200, gin.H{"message": "uploaded file chunk"})
 }
+
+//func mergeFileChunk(c *gin.Context) {
+//	fileHash := c.Param("fileHash")
+//	// read each chunk and write into another file
+//	chunkDir := filepath.Join(TempFileStoragePath, fileHash)
+//	files, err := os.ReadDir(chunkDir)
+//	if err != nil {
+//		c.JSON(500, gin.H{"message": "failed to read chunk directory", "description": err.Error()})
+//		return
+//	}
+//	targetPath := filepath.Join(FileStoragePath, fileHash)
+//	for _, file := range files {
+//		fileName := file.Name()
+//
+//	}
+//	// store file info in mysql
+//
+//}
