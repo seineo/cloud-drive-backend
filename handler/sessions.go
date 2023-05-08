@@ -30,7 +30,7 @@ func login(c *gin.Context) {
 
 	user, err := model.GetUserByEmail(userLogin.Email)
 	if err != nil {
-		c.JSON(401, gin.H{"message": "email not found"})
+		c.JSON(400, gin.H{"message": "email not found"})
 		return
 	}
 	log.WithFields(logrus.Fields{
