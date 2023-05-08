@@ -21,7 +21,6 @@ import (
 	"time"
 )
 
-var configs = config.GetConfig()
 var FileStoragePath = configs.Storage.DiskStoragePath
 var TempFileStoragePath = configs.Storage.DiskTempStoragePath
 var MaxUploadSize = configs.MaxUploadSize
@@ -40,18 +39,26 @@ type currentChunks struct {
 	Indexes     map[uint]string `json:"indexes"`
 }
 
+type mergeInfo struct {
+	FileHash string
+	FileName string
+	FileType string
+	DirPath  string
+	FileSize uint
+}
+
 var chunkMutex sync.Mutex // write currentChunks in redis
 
 func RegisterFilesRoutes(router *gin.Engine) {
 	group := router.Group("/api/v1/files", middleware.AuthCheck)
 	group.POST("data/*dirPath", uploadFile)
-	group.GET("data/*dirPath", getFiles)
+	group.GET("data/*dirPath", downloadFiles)
 	// we don't need metadata of specific file, since front end would show all files in a directory
 	group.GET("metadata/*dirPath", getFilesMetadata)
 	group.POST("share/*dirPath", shareFiles)
 	group.GET("hash/:hash", fileExists)
 	group.POST("chunks", uploadFileChunk)
-	//group.POST("chunks/:fileHash", mergeFileChunk)
+	group.POST("chunks/:fileHash", mergeFileChunk)
 }
 
 // upload file or create a directory given its directory path in url and its file/dir name in form data
@@ -90,7 +97,7 @@ func uploadFile(c *gin.Context) {
 			return
 		}
 		// check file size
-		if file.Size > MaxUploadSize {
+		if uint(file.Size) > MaxUploadSize {
 			c.JSON(400, gin.H{"message": fmt.Sprintf("Uploaded file %s is too big", file.Filename)})
 			return
 		}
@@ -105,7 +112,7 @@ func uploadFile(c *gin.Context) {
 			Name:       fileName,
 			UserID:     userID.(uint),
 			FileType:   fileType,
-			Size:       file.Size,
+			Size:       uint(file.Size),
 			DirPath:    dirPath,
 			Location:   fileStoragePath,
 			CreateTime: time.Now(),
@@ -144,7 +151,7 @@ func getFilesMetadata(c *gin.Context) {
 // download directory or normal file, both need its directory path and name
 // if target is dir or file exceeds specific size, return the zipped result
 // else return the file itself
-func getFiles(c *gin.Context) {
+func downloadFiles(c *gin.Context) {
 	dirPath := c.Param("dirPath")
 	fileName := c.Query("fileName")
 	if dirPath == "" || fileName == "" {
@@ -330,7 +337,7 @@ func uploadFileChunk(c *gin.Context) {
 	var chunk requestChunk
 	err := c.Bind(&chunk)
 	if err != nil {
-		c.JSON(400, gin.H{"message": "invalid input data", "description": err.Error()})
+		c.JSON(400, gin.H{"message": "invalid request data", "description": err.Error()})
 		return
 	}
 	var tempFileDir = filepath.Join(TempFileStoragePath, chunk.FileHash)
@@ -393,23 +400,59 @@ func uploadFileChunk(c *gin.Context) {
 		"chunkHash": chunk.ChunkHash,
 	}).Infof("stored file chunk")
 	chunkMutex.Unlock()
-	c.JSON(200, gin.H{"message": "uploaded file chunk"})
+	c.JSON(200, gin.H{"chunkIndex": chunk.Index, "fileHash": chunk.FileHash})
 }
 
-//func mergeFileChunk(c *gin.Context) {
-//	fileHash := c.Param("fileHash")
-//	// read each chunk and write into another file
-//	chunkDir := filepath.Join(TempFileStoragePath, fileHash)
-//	files, err := os.ReadDir(chunkDir)
-//	if err != nil {
-//		c.JSON(500, gin.H{"message": "failed to read chunk directory", "description": err.Error()})
-//		return
-//	}
-//	targetPath := filepath.Join(FileStoragePath, fileHash)
-//	for _, file := range files {
-//		fileName := file.Name()
-//
-//	}
-//	// store file info in mysql
-//
-//}
+func mergeFileChunk(c *gin.Context) {
+	fileHash := c.Param("fileHash")
+	var merge mergeInfo
+	err := c.Bind(&merge)
+	if err != nil {
+		c.JSON(400, gin.H{"message": "invalid request data", "description": err.Error()})
+		return
+	}
+	// read each chunk and write into another file
+	chunkDir := filepath.Join(TempFileStoragePath, fileHash)
+	chunks, err := os.ReadDir(chunkDir)
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to read chunk directory", "description": err.Error()})
+		return
+	}
+	targetPath := filepath.Join(FileStoragePath, fileHash)
+	targetFile, err := os.OpenFile(targetPath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to open target storage file", "description": err.Error()})
+		return
+	}
+	for _, chunk := range chunks {
+		chunkName := chunk.Name()
+		chunkData, err := os.ReadFile(filepath.Join(chunkDir, chunkName))
+		if err != nil {
+			c.JSON(500, gin.H{"message": "failed to read chunk file", "description": err.Error()})
+			return
+		}
+		_, err = targetFile.Write(chunkData)
+		if err != nil {
+			c.JSON(500, gin.H{"message": "failed to write all the chunk data to target", "description": err.Error()})
+			return
+		}
+	}
+	// store file info in mysql
+	session := sessions.Default(c)
+	userID := session.Get("userID")
+	err = model.StoreFileMetadata(&model.File{
+		Hash:       merge.FileHash,
+		Name:       merge.FileName,
+		UserID:     userID.(uint),
+		FileType:   merge.FileType,
+		Size:       merge.FileSize,
+		DirPath:    merge.DirPath,
+		Location:   targetPath,
+		CreateTime: time.Now(),
+	})
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to store merged file info", "description": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"fileName": merge.FileName, "userID": userID})
+}
