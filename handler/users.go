@@ -4,7 +4,6 @@ import (
 	"CloudDrive/model"
 	"github.com/alexedwards/argon2id"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"time"
 )
@@ -33,9 +32,8 @@ func register(c *gin.Context) {
 	}
 
 	// generate root dir hash for the user
-	rootHash := uuid.New().String()
 	err = model.StoreFileMetadata(&model.File{
-		Hash:       rootHash,
+		Hash:       user.RootHash,
 		Name:       "我的云盘",
 		UserID:     user.ID,
 		FileType:   "dir",
@@ -45,7 +43,6 @@ func register(c *gin.Context) {
 		CreateTime: time.Now(),
 	})
 
-	user.RootHash = rootHash
 	err = model.CreateUser(&user)
 	if err != nil {
 		c.JSON(500, gin.H{"message": "failed to create a user", "description": err.Error()})
@@ -58,4 +55,8 @@ func register(c *gin.Context) {
 		"userEmail": user.Email,
 	}).Info("created a new user")
 	c.JSON(200, gin.H{"user": user})
+}
+
+func getUserInfo() {
+
 }
