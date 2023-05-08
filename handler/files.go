@@ -26,6 +26,14 @@ var TempFileStoragePath = configs.Storage.DiskTempStoragePath
 var MaxUploadSize = configs.MaxUploadSize
 var ArchiveThreshold = configs.ArchiveThreshold
 
+type requestFile struct {
+	FileHash string `json:"fileHash" binding:"required"`
+	FileName string `json:"fileName" binding:"required"`
+	FileType string `json:"fileType" binding:"required"`
+	DirPath  string `json:"dirPath" binding:"required"`
+	FileSize uint   `json:"fileSize" binding:"required"`
+}
+
 type requestChunk struct {
 	FileHash    string `json:"fileHash" binding:"required"`
 	ChunkHash   string `json:"chunkHash" binding:"required"`
@@ -39,54 +47,43 @@ type currentChunks struct {
 	Indexes     map[uint]string `json:"indexes"`
 }
 
-type mergeInfo struct {
-	FileHash string
-	FileName string
-	FileType string
-	DirPath  string
-	FileSize uint
-}
-
 var chunkMutex sync.Mutex // write currentChunks in redis
 
 func RegisterFilesRoutes(router *gin.Engine) {
 	group := router.Group("/api/v1/files", middleware.AuthCheck)
-	group.POST("data/*dirPath", uploadFile)
+	group.POST("data/", uploadFile)
 	group.GET("data/*dirPath", downloadFiles)
 	// we don't need metadata of specific file, since front end would show all files in a directory
-	group.GET("metadata/*dirPath", getFilesMetadata)
+	group.GET("metadata/:fileHash", getFilesMetadata)
 	group.POST("share/*dirPath", shareFiles)
-	group.GET("hash/:hash", fileExists)
+	group.GET("hash/:fileHash", fileExists)
 	group.POST("chunks", uploadFileChunk)
 	group.POST("chunks/:fileHash", mergeFileChunk)
 }
 
 // upload file or create a directory given its directory path in url and its file/dir name in form data
 func uploadFile(c *gin.Context) {
-	// get request form data
-	fileName := c.PostForm("fileName")
-	hash := c.PostForm("hash")
-	fileType := c.PostForm("fileType")
-	dirPath := c.Param("dirPath")
-	if fileName == "" || hash == "" || fileType == "" || dirPath == "" {
-		c.JSON(400, gin.H{"message": "form data cannot be empty"})
-		return
+	// get request metadata in json format
+	var fileInfo requestFile
+	jsonStr := c.PostForm("metadata")
+	err := json.Unmarshal([]byte(jsonStr), &fileInfo)
+	if err != nil {
+		// handle error
 	}
-
 	var metadata model.File
 
 	// get user info
 	session := sessions.Default(c)
 	userID := session.Get("userID")
 	// store different metadata depending on file type
-	if fileType == "dir" {
+	if fileInfo.FileType == "dir" {
 		metadata = model.File{
-			Hash:       hash,
-			Name:       fileName,
+			Hash:       fileInfo.FileHash,
+			Name:       fileInfo.FileName,
 			UserID:     userID.(uint),
-			FileType:   fileType,
+			FileType:   fileInfo.FileType,
 			Size:       0,
-			DirPath:    dirPath,
+			DirPath:    fileInfo.DirPath,
 			Location:   "",
 			CreateTime: time.Now(),
 		}
@@ -97,28 +94,28 @@ func uploadFile(c *gin.Context) {
 			return
 		}
 		// check file size
-		if uint(file.Size) > MaxUploadSize {
+		if fileInfo.FileSize > MaxUploadSize {
 			c.JSON(400, gin.H{"message": fmt.Sprintf("Uploaded file %s is too big", file.Filename)})
 			return
 		}
-		fileStoragePath := filepath.Join(FileStoragePath, hash)
+		fileStoragePath := filepath.Join(FileStoragePath, fileInfo.FileHash)
 		if err := c.SaveUploadedFile(file, fileStoragePath); err != nil {
 			c.JSON(500, gin.H{"message": "failed to store uploaded file", "description": err.Error()})
 			return
 		}
 		//store file metadata
 		metadata = model.File{
-			Hash:       hash,
-			Name:       fileName,
+			Hash:       fileInfo.FileHash,
+			Name:       fileInfo.FileName,
 			UserID:     userID.(uint),
-			FileType:   fileType,
-			Size:       uint(file.Size),
-			DirPath:    dirPath,
+			FileType:   fileInfo.FileType,
+			Size:       fileInfo.FileSize,
+			DirPath:    fileInfo.DirPath,
 			Location:   fileStoragePath,
 			CreateTime: time.Now(),
 		}
 	}
-	err := model.StoreFileMetadata(&metadata)
+	err = model.StoreFileMetadata(&metadata)
 	if err != nil {
 		c.JSON(500, gin.H{"message": "failed to store file metadata", "description": err.Error()})
 		return
@@ -128,18 +125,18 @@ func uploadFile(c *gin.Context) {
 
 // get metadata of all files under given directory
 func getFilesMetadata(c *gin.Context) {
-	dirPath := c.Param("dirPath")
+	fileHash := c.Param("fileHash")
 	// get user info
 	session := sessions.Default(c)
 	userID := session.Get("userID")
 	log.WithFields(logrus.Fields{
-		"dirPath": dirPath,
+		"dirPath": fileHash,
 		"userID":  userID,
 	}).Info("trying to get file metadata")
 	// get metadata of all the files under the directory
-	files, err := model.GetFilesMetadata(userID.(uint), dirPath)
+	files, err := model.GetFilesMetadata(userID.(uint), fileHash)
 	if err != nil {
-		c.JSON(500, gin.H{"message": fmt.Sprintf("failed to get files under dir %s", dirPath),
+		c.JSON(500, gin.H{"message": "failed to get files metadata",
 			"description": err.Error()})
 		return
 	}
@@ -405,7 +402,7 @@ func uploadFileChunk(c *gin.Context) {
 
 func mergeFileChunk(c *gin.Context) {
 	fileHash := c.Param("fileHash")
-	var merge mergeInfo
+	var merge requestFile
 	err := c.Bind(&merge)
 	if err != nil {
 		c.JSON(400, gin.H{"message": "invalid request data", "description": err.Error()})
