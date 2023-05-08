@@ -11,7 +11,7 @@ type File struct {
 	Name       string
 	UserID     uint
 	FileType   string // dir, pdf, img, video...
-	Size       int64
+	Size       uint
 	DirPath    string // virtual directory path shown for users
 	Location   string // real file storage path
 	CreateTime time.Time
