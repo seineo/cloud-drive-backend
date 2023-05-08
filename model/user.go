@@ -6,9 +6,10 @@ import (
 
 type User struct {
 	gorm.Model        // embeds id, create at and update at timestamps
-	Name       string `form:"name" binding:"required"`
-	Email      string `form:"email" binding:"required,email"`
-	Password   string `form:"password" binding:"required"`
+	Name       string `json:"name" binding:"required"`
+	Email      string `json:"email" binding:"required,email"`
+	Password   string `json:"password" binding:"required"`
+	RootHash   string `json:"rootHash"`
 }
 
 func CreateUser(user *User) error {
@@ -29,8 +30,4 @@ func GetUserByEmail(email string) (*User, error) {
 		return nil, err
 	}
 	return &user, nil
-}
-
-func DeleteUser(email string) error {
-	return db.Where("email = ?", email).Delete(&User{}).Error
 }

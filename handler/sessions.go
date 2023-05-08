@@ -10,8 +10,8 @@ import (
 )
 
 type UserLogin struct {
-	Email    string `form:"email" binding:"required,email"`
-	Password string `form:"password" binding:"required"`
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required"`
 }
 
 func RegisterSessionsRoutes(router *gin.Engine) {
