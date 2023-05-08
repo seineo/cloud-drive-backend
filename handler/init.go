@@ -21,6 +21,7 @@ var sessionInfo *SessionInfo
 var log *logrus.Logger
 var ctx = context.Background()
 var rdb *redis.Client
+var configs = config.GetConfig()
 
 func init() {
 	log = config.GetConfig().Log

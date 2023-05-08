@@ -12,8 +12,8 @@ type Config struct {
 	Email               *EmailConfig
 	Storage             *StorageConfig
 	Log                 *logrus.Logger
-	MaxUploadSize       int64 // max size of uploaded file that we allow
-	ArchiveThreshold    int64
+	MaxUploadSize       uint // max size of uploaded file that we allow
+	ArchiveThreshold    uint
 }
 
 var config *Config
