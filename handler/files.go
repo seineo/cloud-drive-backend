@@ -51,7 +51,7 @@ var chunkMutex sync.Mutex // write currentChunks in redis
 
 func RegisterFilesRoutes(router *gin.Engine) {
 	group := router.Group("/api/v1/files", middleware.AuthCheck)
-	group.POST("data/", uploadFile)
+	group.POST("data", uploadFile)
 	group.GET("data/*dirPath", downloadFiles)
 	// we don't need metadata of specific file, since front end would show all files in a directory
 	group.GET("metadata/:fileHash", getFilesMetadata)

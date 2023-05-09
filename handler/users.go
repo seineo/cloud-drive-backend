@@ -56,7 +56,3 @@ func register(c *gin.Context) {
 	}).Info("created a new user")
 	c.JSON(200, gin.H{"user": user})
 }
-
-func getUserInfo() {
-
-}

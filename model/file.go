@@ -23,14 +23,14 @@ func StoreFileMetadata(file *File) error {
 
 // GetFilesMetadata when file is found, return the file list
 // when not found, return empty list without error
-func GetFilesMetadata(userID uint, fileHash string) ([]File, error) {
+func GetFilesMetadata(userID uint, dirHash string) ([]File, error) {
 	var files []File
 	var file File
 	// find directory first
-	if err := db.Where("hash = ?", fileHash).First(&file).Error; err != nil {
+	if err := db.Where("hash = ?", dirHash).First(&file).Error; err != nil {
 		return nil, err
 	}
-	dirPath := file.DirPath
+	dirPath := file.Name
 	// find files under that directory
 	if err := db.Where("user_id = ? and dir_path = ?", userID, dirPath).Find(&files).Error; err != nil {
 		return nil, err
