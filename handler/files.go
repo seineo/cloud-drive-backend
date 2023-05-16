@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"CloudDrive/config"
 	"CloudDrive/middleware"
 	"CloudDrive/model"
 	"CloudDrive/service"
@@ -10,12 +9,10 @@ import (
 	"fmt"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -52,13 +49,14 @@ var chunkMutex sync.Mutex // write currentChunks in redis
 func RegisterFilesRoutes(router *gin.Engine) {
 	group := router.Group("/api/v1/files", middleware.AuthCheck)
 	group.POST("data", uploadFile)
-	group.GET("data/*dirPath", downloadFiles)
+	group.GET("data/:fileHash", downloadFiles)
 	// we don't need metadata of specific file, since front end would show all files in a directory
 	group.GET("metadata/:fileHash", getFilesMetadata)
-	group.POST("share/*dirPath", shareFiles)
+	//group.POST("share/*dirPath", shareFiles)
 	group.GET("hash/:fileHash", fileExists)
 	group.POST("chunks", uploadFileChunk)
-	group.POST("chunks/:fileHash", mergeFileChunk)
+	group.POST("chunks/:fileHash", mergeFileChunks)
+	group.GET("chunks/:fileHash", getMissedChunks)
 }
 
 // upload file or create a directory given its directory path in url and its file/dir name in form data
@@ -149,9 +147,8 @@ func getFilesMetadata(c *gin.Context) {
 // if target is dir or file exceeds specific size, return the zipped result
 // else return the file itself
 func downloadFiles(c *gin.Context) {
-	dirPath := c.Param("dirPath")
-	fileName := c.Query("fileName")
-	if dirPath == "" || fileName == "" {
+	fileHash := c.Param("fileHash")
+	if fileHash == "" {
 		c.JSON(400, gin.H{"message": "dirPath and fileName cannot be empty"})
 		return
 	}
@@ -159,7 +156,7 @@ func downloadFiles(c *gin.Context) {
 	session := sessions.Default(c)
 	userID := session.Get("userID")
 	// get file metadata
-	fileInfo, err := model.GetFileMetadata(userID.(uint), dirPath, fileName)
+	fileInfo, err := model.GetFileMetadata(fileHash)
 	if err != nil {
 		c.JSON(500, gin.H{"message": "failed to get file metadata", "description": err.Error()})
 	}
@@ -170,19 +167,20 @@ func downloadFiles(c *gin.Context) {
 		!strings.HasPrefix(fileInfo.FileType, "image") && !strings.HasPrefix(fileInfo.FileType, "audio") &&
 		!strings.HasPrefix(fileInfo.FileType, "video")) {
 		isArchived = true
-		err = service.ArchiveFile(userID.(uint), dirPath, fileName, filepath.Join(TempFileStoragePath, fileInfo.Hash))
+		err = service.ArchiveFile(userID.(uint), fileInfo.Hash, fileInfo.DirPath, fileInfo.Name,
+			filepath.Join(TempFileStoragePath, fileInfo.Hash))
 		if err != nil {
 			c.JSON(500, gin.H{"message": "failed to archive file", "description": err.Error()})
 			return
 		}
 		log.WithFields(logrus.Fields{
-			"fileName":   fileName,
+			"fileName":   fileInfo.Name,
 			"zippedPath": filepath.Join(TempFileStoragePath, fileInfo.Hash),
 		}).Info("file archived")
 	}
 	// write response header
-	c.Header("Content-Disposition", "attachment; filename="+fileName) // download named by filename
-	c.Header("Content-Type", "application/octet-stream")              // binary stream
+	c.Header("Content-Disposition", "attachment; filename="+fileInfo.Name) // download named by filename
+	c.Header("Content-Type", "application/octet-stream")                   // binary stream
 	// return the file
 	if isArchived {
 		file, err := os.Open(filepath.Join(TempFileStoragePath, fileInfo.Hash))
@@ -212,104 +210,104 @@ func downloadFiles(c *gin.Context) {
 // otherwise (shared to the public)
 //
 //	we need user role, expired time and password(optional)
-func shareFiles(c *gin.Context) {
-	// get current user
-	session := sessions.Default(c)
-	ownerID := session.Get("userID")
-	user, err := model.GetUserByID(ownerID.(uint))
-	if err != nil {
-		c.JSON(500, gin.H{"message": "failed to find user by id", "description": err.Error()})
-		return
-	}
-	// common fields
-	dirPath := c.Param("dirPath")
-	isLimited := c.PostForm("isLimited")
-	expiredTime := c.PostForm("expiredTime")
-	userRole, err := strconv.Atoi(c.PostForm("userRole"))
-	if err != nil {
-		c.JSON(400, gin.H{"message": "user role should be 0 or 1"})
-		return
-	}
-	fileNames := c.PostFormArray("fileNames")
-
-	var share model.Share
-
-	// get file hash
-	var filesHash []string
-	for i := 0; i < len(fileNames); i++ {
-		fileMetadata, err := model.GetFileMetadata(ownerID.(uint), dirPath, fileNames[i])
-		if err != nil {
-			c.JSON(500, gin.H{"message": "failed to get file metadata", "description": err.Error()})
-			return
-		}
-		filesHash = append(filesHash, fileMetadata.Hash)
-	}
-
-	if isLimited == "true" {
-		emails := c.PostFormArray("emails")
-		content := c.PostForm("content")
-		// send emails to users, and generate share info
-		for i := 0; i < len(emails); i++ {
-			var sharedIDs []string
-			var sharedLinks []string
-			for j := 0; j < len(fileNames); j++ {
-				// generate shared links, each file for each email has a unique link
-				sharedID := uuid.NewString()
-				sharedIDs = append(sharedIDs, sharedID)
-				sharedLink := fmt.Sprintf("%s/files/%s", config.GetConfig().ProjectURL, sharedID)
-				sharedLinks = append(sharedLinks, sharedLink)
-			}
-			// send email
-			err := service.SendShareEmails(user.Name, user.Email, emails[i], content, fileNames, sharedLinks)
-			if err != nil {
-				c.JSON(500, gin.H{"message": "failed to send file sharing email", "description": err.Error()})
-				return
-			}
-			// generate share info
-			for j := 0; j < len(fileNames); j++ {
-				sharedUser, _ := model.GetUserByEmail(emails[i])
-				share = model.Share{
-					SharedID:    sharedIDs[j],
-					FileHash:    filesHash[j],
-					OwnerID:     ownerID.(uint),
-					UserID:      service.GetSharedUserIDPtr(sharedUser),
-					UserRole:    uint(userRole),
-					Password:    nil,
-					AccessCount: 0,
-					SharedTime:  time.Now(),
-					ExpiredTime: service.GetShareExpiredTimePtr(expiredTime),
-					IsLimited:   true,
-				}
-			}
-		}
-	} else if isLimited == "false" { // shared to the public
-		password := c.PostForm("password")
-		for j := 0; j < len(fileNames); j++ {
-			sharedID := uuid.NewString()
-			share = model.Share{
-				SharedID:    sharedID,
-				FileHash:    filesHash[j],
-				OwnerID:     ownerID.(uint),
-				UserID:      nil,
-				UserRole:    uint(userRole),
-				Password:    service.GetPasswordPtr(password),
-				AccessCount: 0,
-				SharedTime:  time.Now(),
-				ExpiredTime: service.GetShareExpiredTimePtr(expiredTime),
-				IsLimited:   false,
-			}
-		}
-	} else {
-		c.JSON(400, gin.H{"message": "field `isLimited` can only either be `true` or `false`"})
-		return
-	}
-	// store share info to database
-	if err = model.CreateShare(&share); err != nil {
-		c.JSON(500, gin.H{"message": "failed to store share info", "description": err.Error()})
-		return
-	}
-	c.JSON(200, gin.H{"share": share})
-}
+//func shareFiles(c *gin.Context) {
+//	// get current user
+//	session := sessions.Default(c)
+//	ownerID := session.Get("userID")
+//	user, err := model.GetUserByID(ownerID.(uint))
+//	if err != nil {
+//		c.JSON(500, gin.H{"message": "failed to find user by id", "description": err.Error()})
+//		return
+//	}
+//	// common fields
+//	dirPath := c.Param("dirPath")
+//	isLimited := c.PostForm("isLimited")
+//	expiredTime := c.PostForm("expiredTime")
+//	userRole, err := strconv.Atoi(c.PostForm("userRole"))
+//	if err != nil {
+//		c.JSON(400, gin.H{"message": "user role should be 0 or 1"})
+//		return
+//	}
+//	fileNames := c.PostFormArray("fileNames")
+//
+//	var share model.Share
+//
+//	// get file hash
+//	var filesHash []string
+//	for i := 0; i < len(fileNames); i++ {
+//		fileMetadata, err := model.GetFileMetadata(ownerID.(uint), dirPath, fileNames[i])
+//		if err != nil {
+//			c.JSON(500, gin.H{"message": "failed to get file metadata", "description": err.Error()})
+//			return
+//		}
+//		filesHash = append(filesHash, fileMetadata.Hash)
+//	}
+//
+//	if isLimited == "true" {
+//		emails := c.PostFormArray("emails")
+//		content := c.PostForm("content")
+//		// send emails to users, and generate share info
+//		for i := 0; i < len(emails); i++ {
+//			var sharedIDs []string
+//			var sharedLinks []string
+//			for j := 0; j < len(fileNames); j++ {
+//				// generate shared links, each file for each email has a unique link
+//				sharedID := uuid.NewString()
+//				sharedIDs = append(sharedIDs, sharedID)
+//				sharedLink := fmt.Sprintf("%s/files/%s", config.GetConfig().ProjectURL, sharedID)
+//				sharedLinks = append(sharedLinks, sharedLink)
+//			}
+//			// send email
+//			err := service.SendShareEmails(user.Name, user.Email, emails[i], content, fileNames, sharedLinks)
+//			if err != nil {
+//				c.JSON(500, gin.H{"message": "failed to send file sharing email", "description": err.Error()})
+//				return
+//			}
+//			// generate share info
+//			for j := 0; j < len(fileNames); j++ {
+//				sharedUser, _ := model.GetUserByEmail(emails[i])
+//				share = model.Share{
+//					SharedID:    sharedIDs[j],
+//					FileHash:    filesHash[j],
+//					OwnerID:     ownerID.(uint),
+//					UserID:      service.GetSharedUserIDPtr(sharedUser),
+//					UserRole:    uint(userRole),
+//					Password:    nil,
+//					AccessCount: 0,
+//					SharedTime:  time.Now(),
+//					ExpiredTime: service.GetShareExpiredTimePtr(expiredTime),
+//					IsLimited:   true,
+//				}
+//			}
+//		}
+//	} else if isLimited == "false" { // shared to the public
+//		password := c.PostForm("password")
+//		for j := 0; j < len(fileNames); j++ {
+//			sharedID := uuid.NewString()
+//			share = model.Share{
+//				SharedID:    sharedID,
+//				FileHash:    filesHash[j],
+//				OwnerID:     ownerID.(uint),
+//				UserID:      nil,
+//				UserRole:    uint(userRole),
+//				Password:    service.GetPasswordPtr(password),
+//				AccessCount: 0,
+//				SharedTime:  time.Now(),
+//				ExpiredTime: service.GetShareExpiredTimePtr(expiredTime),
+//				IsLimited:   false,
+//			}
+//		}
+//	} else {
+//		c.JSON(400, gin.H{"message": "field `isLimited` can only either be `true` or `false`"})
+//		return
+//	}
+//	// store share info to database
+//	if err = model.CreateShare(&share); err != nil {
+//		c.JSON(500, gin.H{"message": "failed to store share info", "description": err.Error()})
+//		return
+//	}
+//	c.JSON(200, gin.H{"share": share})
+//}
 
 // check whether file exists using hash
 func fileExists(c *gin.Context) {
@@ -400,7 +398,8 @@ func uploadFileChunk(c *gin.Context) {
 	c.JSON(200, gin.H{"chunkIndex": chunk.Index, "fileHash": chunk.FileHash})
 }
 
-func mergeFileChunk(c *gin.Context) {
+// merge uploaded chunks of a file and store it into another file
+func mergeFileChunks(c *gin.Context) {
 	fileHash := c.Param("fileHash")
 	var merge requestFile
 	err := c.Bind(&merge)
@@ -434,6 +433,8 @@ func mergeFileChunk(c *gin.Context) {
 			return
 		}
 	}
+	// delete temporal chunks
+
 	// store file info in mysql
 	session := sessions.Default(c)
 	userID := session.Get("userID")
@@ -452,4 +453,39 @@ func mergeFileChunk(c *gin.Context) {
 		return
 	}
 	c.JSON(200, gin.H{"fileName": merge.FileName, "userID": userID})
+}
+
+// To achieve breakpoint resume, obtain the unuploaded file chunks.
+func getMissedChunks(c *gin.Context) {
+	fileHash := c.Param("fileHash")
+	// get indexes of uploaded chunks from redis
+	chunkMutex.Lock()
+	chunkJson, err := rdb.Get(ctx, fileHash).Result()
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to store file chunk", "description": err.Error()})
+		return
+	}
+	var chunkInfo currentChunks
+	err = json.Unmarshal([]byte(chunkJson), &chunkInfo)
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to unmarshal chunk info", "description": err.Error()})
+		return
+	}
+	chunkMutex.Unlock()
+	// find missed chunks
+	var missedChunks []uint
+	for i := 1; uint(i) <= chunkInfo.TotalChunks; i++ {
+		equal := false
+		var index uint
+		for index = range chunkInfo.Indexes {
+			if index == uint(i) {
+				equal = true
+				break
+			}
+		}
+		if !equal {
+			missedChunks = append(missedChunks, index)
+		}
+	}
+	c.JSON(200, gin.H{"missedChunks": missedChunks})
 }
