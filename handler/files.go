@@ -407,9 +407,8 @@ func mergeFileChunks(c *gin.Context) {
 		c.JSON(400, gin.H{"message": "invalid request data", "description": err.Error()})
 		return
 	}
-	// read each chunk and write into another file
+	// set source files and target file
 	chunkDir := filepath.Join(TempFileStoragePath, fileHash)
-	chunks, err := os.ReadDir(chunkDir)
 	if err != nil {
 		c.JSON(500, gin.H{"message": "failed to read chunk directory", "description": err.Error()})
 		return
@@ -420,9 +419,24 @@ func mergeFileChunks(c *gin.Context) {
 		c.JSON(500, gin.H{"message": "failed to open target storage file", "description": err.Error()})
 		return
 	}
-	for _, chunk := range chunks {
-		chunkName := chunk.Name()
-		chunkData, err := os.ReadFile(filepath.Join(chunkDir, chunkName))
+	// get chunk order info from redis
+	chunkMutex.Lock()
+	chunkJson, err := rdb.Get(ctx, fileHash).Result()
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to store file chunk", "description": err.Error()})
+		return
+	}
+	var chunkInfo currentChunks
+	err = json.Unmarshal([]byte(chunkJson), &chunkInfo)
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to unmarshal chunk info", "description": err.Error()})
+		return
+	}
+	chunkMutex.Unlock()
+	// read file in order and write into target file
+	for i := 1; uint(i) <= chunkInfo.TotalChunks; i++ {
+		chunkHash := chunkInfo.Indexes[uint(i)]
+		chunkData, err := os.ReadFile(filepath.Join(chunkDir, chunkHash))
 		if err != nil {
 			c.JSON(500, gin.H{"message": "failed to read chunk file", "description": err.Error()})
 			return
@@ -434,7 +448,11 @@ func mergeFileChunks(c *gin.Context) {
 		}
 	}
 	// delete temporal chunks
-
+	err = os.RemoveAll(chunkDir)
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to delete temporal chunks", "description": err.Error()})
+		return
+	}
 	// store file info in mysql
 	session := sessions.Default(c)
 	userID := session.Get("userID")
