@@ -140,7 +140,6 @@ func getFilesMetadata(c *gin.Context) {
 	}
 	c.JSON(200, gin.H{"files": files})
 	return
-
 }
 
 // download directory or normal file, both need its directory path and name
