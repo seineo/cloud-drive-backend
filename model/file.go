@@ -30,7 +30,12 @@ func GetFilesMetadata(userID uint, dirHash string) ([]File, error) {
 	if err := db.Where("hash = ?", dirHash).First(&file).Error; err != nil {
 		return nil, err
 	}
-	dirPath := file.Name
+	var dirPath string
+	if file.DirPath != "" {
+		dirPath = file.DirPath + "/" + file.Name
+	} else {
+		dirPath = file.Name
+	}
 	// find files under that directory
 	if err := db.Where("user_id = ? and dir_path = ?", userID, dirPath).Find(&files).Error; err != nil {
 		return nil, err
