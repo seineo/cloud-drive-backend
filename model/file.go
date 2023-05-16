@@ -40,9 +40,9 @@ func GetFilesMetadata(userID uint, dirHash string) ([]File, error) {
 
 // GetFileMetadata when file is found, return the pointer to the file,
 // when not found, raise RecordNotFound error, it should be dealt with differently from other errors
-func GetFileMetadata(userID uint, dirPath string, fileName string) (*File, error) {
+func GetFileMetadata(fileHash string) (*File, error) {
 	var file File // it will initialize with default fields!
-	if err := db.Where("user_id = ? and dir_path = ? and name = ?", userID, dirPath, fileName).First(&file).Error; err != nil {
+	if err := db.Where("hash = ?", fileHash).First(&file).Error; err != nil {
 		return nil, err
 	}
 	return &file, nil

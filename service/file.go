@@ -13,8 +13,8 @@ type myWalkDirFunc func(fileInfo *model.File, err error) error
 
 // descends file/dir at dirPath/fileName and calls walkDirFn when pass by each file
 // note that when walkDir meets error, it lets walkDirFn deal with that.
-func walkDir(userID uint, dirPath string, fileName string, walkDirFn myWalkDirFunc) error {
-	file, err := model.GetFileMetadata(userID, dirPath, fileName) // info includes file type and location etc.
+func walkDir(userID uint, fileHash string, dirPath string, fileName string, walkDirFn myWalkDirFunc) error {
+	file, err := model.GetFileMetadata(fileHash) // info includes file type and location etc.
 	if err != nil {
 		return err
 	}
@@ -31,7 +31,7 @@ func walkDir(userID uint, dirPath string, fileName string, walkDirFn myWalkDirFu
 		return err
 	}
 	for _, file1 := range filesMetadata {
-		err := walkDir(userID, file1.DirPath, file1.Name, walkDirFn)
+		err := walkDir(userID, file1.Hash, file1.DirPath, file1.Name, walkDirFn)
 		if err != nil {
 			return err
 		}
@@ -40,7 +40,7 @@ func walkDir(userID uint, dirPath string, fileName string, walkDirFn myWalkDirFu
 }
 
 // ArchiveFile archive single file or a directory in zip format
-func ArchiveFile(userID uint, dirPath string, fileName string, dstPath string) error {
+func ArchiveFile(userID uint, fileHash string, dirPath string, fileName string, dstPath string) error {
 	// create a zip file and zip.Writer
 	f, err := os.Create(dstPath)
 	if err != nil {
@@ -95,6 +95,6 @@ func ArchiveFile(userID uint, dirPath string, fileName string, dstPath string) e
 		}
 		return nil
 	}
-	err = walkDir(userID, dirPath, fileName, walker)
+	err = walkDir(userID, fileHash, dirPath, fileName, walker)
 	return err
 }
