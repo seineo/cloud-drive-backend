@@ -98,3 +98,7 @@ func ArchiveFile(userID uint, fileHash string, dirPath string, fileName string, 
 	err = walkDir(userID, fileHash, dirPath, fileName, walker)
 	return err
 }
+
+func GetChunkInfo(fileHash string) {
+
+}
