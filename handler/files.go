@@ -310,7 +310,7 @@ func downloadFiles(c *gin.Context) {
 
 // check whether file exists using hash
 func fileExists(c *gin.Context) {
-	hash := c.Param("hash")
+	hash := c.Param("fileHash")
 	exists, err := model.FileExists(hash)
 	if err != nil {
 		c.JSON(500, gin.H{"message": "failed to check whether file exists", "description": err.Error()})
