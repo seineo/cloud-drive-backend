@@ -28,16 +28,17 @@ func init() {
 	db = dbConn
 
 	// auto migration for models, for example creating tables automatically
-	err = db.AutoMigrate(&User{})
+	err = db.AutoMigrate(&User{}, &File{}, &Directory{}, &DirectoryFile{})
 	if err != nil {
-		log.WithError(err).Error("fail to auto migrate model user")
+		log.WithError(err).Fatal("fail to auto migrate models")
 	}
-	err = db.AutoMigrate(&File{})
+	//err = db.AutoMigrate(&Share{})
+	//if err != nil {
+	//	log.WithError(err).Error("fail to auto migrate model share")
+	//}
+
+	err = db.SetupJoinTable(&Directory{}, "Files", &DirectoryFile{})
 	if err != nil {
-		log.WithError(err).Error("fail to auto migrate model file")
-	}
-	err = db.AutoMigrate(&Share{})
-	if err != nil {
-		log.WithError(err).Error("fail to auto migrate model share")
+		log.WithError(err).Fatal("fail to set join table")
 	}
 }
