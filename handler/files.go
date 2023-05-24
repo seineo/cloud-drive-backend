@@ -6,6 +6,7 @@ import (
 	"CloudDrive/request"
 	"encoding/json"
 	"fmt"
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"path/filepath"
 	"sync"
@@ -47,22 +48,27 @@ func RegisterFilesRoutes(router *gin.Engine) {
 }
 
 func createDir(c *gin.Context) {
-	//// get user info
-	//session := sessions.Default(c)
-	//userID := session.Get("userID")
-	//metadata := model.Directory{
-	//	Hash:    fileInfo.FileHash,
-	//	UserID:  userID.(uint),
-	//	Name:    fileInfo.FileName,
-	//	DirPath: fileInfo.DirPath,
-	//	Files:   nil,
-	//}
-	//err = model.StoreDirMetadata(&metadata)
-	//if err != nil {
-	//	c.JSON(500, gin.H{"message": "failed to store file metadata", "description": err.Error()})
-	//	return
-	//}
-	//c.JSON(200, gin.H{"file": metadata})
+	// bind request data
+	var dirRequest request.DirectoryRequest
+	if err := c.Bind(&dirRequest); err != nil {
+		c.JSON(400, gin.H{"message": "request data is invalid", "description": err.Error()})
+		return
+	}
+	// get user info
+	session := sessions.Default(c)
+	userID := session.Get("userID")
+	// store directory metadata
+	err := model.StoreDirMetadata(&model.Directory{
+		Hash:    dirRequest.Hash,
+		UserID:  userID.(uint),
+		Name:    dirRequest.Name,
+		DirPath: dirRequest.DirPath,
+	})
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to store file metadata", "description": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"dir": dirRequest})
 }
 
 // upload a file given the file content and json-format metadata in form data
