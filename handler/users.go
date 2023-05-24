@@ -5,7 +5,6 @@ import (
 	"github.com/alexedwards/argon2id"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	"time"
 )
 
 func RegisterUsersRoutes(router *gin.Engine) {
@@ -30,18 +29,6 @@ func register(c *gin.Context) {
 		c.JSON(409, gin.H{"message": "email has already been used"})
 		return
 	}
-
-	// generate root dir hash for the user
-	err = model.StoreFileMetadata(&model.File{
-		Hash:       user.RootHash,
-		Name:       "我的云盘",
-		UserID:     user.ID,
-		FileType:   "dir",
-		Size:       0,
-		DirPath:    "",
-		Location:   "",
-		CreateTime: time.Now(),
-	})
 
 	err = model.CreateUser(&user)
 	if err != nil {
