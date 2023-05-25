@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	"path/filepath"
 	"sync"
+	"time"
 )
 
 var FileStoragePath = configs.Storage.DiskStoragePath
@@ -36,10 +38,10 @@ func RegisterFilesRoutes(router *gin.Engine) {
 	group := router.Group("/api/v1/files", middleware.AuthCheck)
 	group.POST("dir", createDir)
 	group.POST("file", uploadFile)
-
 	//group.GET("data/:fileHash", downloadFiles)
-	//// we don't need metadata of specific file, since front end would show all files in a directory
-	//group.GET("metadata/:fileHash", getFilesMetadata)
+
+	// we don't need metadata of specific file, since front end would show all files in a directory
+	group.GET("dir/:dirHash", getFilesMetadata)
 	////group.POST("share/*dirPath", shareFiles)
 	//group.GET("hash/:fileHash", fileExists)
 	//group.POST("chunks", uploadFileChunk)
@@ -47,6 +49,7 @@ func RegisterFilesRoutes(router *gin.Engine) {
 	//group.GET("chunks/:fileHash", getMissedChunks)
 }
 
+// create a new directory
 func createDir(c *gin.Context) {
 	// bind request data
 	var dirRequest request.DirectoryRequest
@@ -59,10 +62,11 @@ func createDir(c *gin.Context) {
 	userID := session.Get("userID")
 	// store directory metadata
 	err := model.StoreDirMetadata(&model.Directory{
-		Hash:    dirRequest.Hash,
-		UserID:  userID.(uint),
-		Name:    dirRequest.Name,
-		DirPath: dirRequest.DirPath,
+		Hash:       dirRequest.Hash,
+		UserID:     userID.(uint),
+		Name:       dirRequest.Name,
+		ParentHash: &dirRequest.DirHash,
+		CreateAt:   time.Now(),
 	})
 	if err != nil {
 		c.JSON(500, gin.H{"message": "failed to store file metadata", "description": err.Error()})
@@ -93,16 +97,21 @@ func uploadFile(c *gin.Context) {
 		c.JSON(400, gin.H{"message": fmt.Sprintf("Uploaded file %s is too big", file.Filename)})
 		return
 	}
-	// store file if not exists
+	// store file content if not exists
 	fileStoragePath := filepath.Join(FileStoragePath, fileInfo.FileHash)
-	if !fileInfo.Exists {
+	exists, err := model.FileExists(fileInfo.FileHash)
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to check whether file exists", "description": err.Error()})
+		return
+	}
+	if !exists {
 		if err := c.SaveUploadedFile(file, fileStoragePath); err != nil {
 			c.JSON(500, gin.H{"message": "failed to store uploaded file", "description": err.Error()})
 			return
 		}
 	}
-	//store file metadata
-	err = model.StoreFileMetadata(&fileInfo, fileStoragePath)
+	// store file metadata to database
+	err = model.StoreFileMetadata(&fileInfo, fileStoragePath, exists)
 	if err != nil {
 		c.JSON(500, gin.H{"message": "failed to store file metadata", "description": err.Error()})
 		return
@@ -110,26 +119,25 @@ func uploadFile(c *gin.Context) {
 	c.JSON(200, gin.H{"file": fileInfo})
 }
 
-//// get metadata of all files under given directory
-//func getFilesMetadata(c *gin.Context) {
-//	fileHash := c.Param("fileHash")
-//	// get user info
-//	session := sessions.Default(c)
-//	userID := session.Get("userID")
-//	log.WithFields(logrus.Fields{
-//		"dirPath": fileHash,
-//		"userID":  userID,
-//	}).Info("trying to get file metadata")
-//	// get metadata of all the files under the directory
-//	files, err := model.GetFilesMetadata(fileHash)
-//	if err != nil {
-//		c.JSON(500, gin.H{"message": "failed to get files metadata",
-//			"description": err.Error()})
-//		return
-//	}
-//	c.JSON(200, gin.H{"files": files})
-//	return
-//}
+// get metadata of all files under given directory
+func getFilesMetadata(c *gin.Context) {
+	dirHash := c.Param("dirHash")
+	// get user info
+	session := sessions.Default(c)
+	userID := session.Get("userID")
+	log.WithFields(logrus.Fields{
+		"dirHash": dirHash,
+		"userID":  userID,
+	}).Info("trying to get file metadata")
+	// get metadata of all the files under the directory
+	files, dirs, err := model.GetFilesMetadata(dirHash)
+	if err != nil {
+		c.JSON(500, gin.H{"message": fmt.Sprintf("failed to get files and dirs under dir %s", dirHash), "description": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"files": files, "dirs": dirs})
+	return
+}
 
 //// download directory or normal file, both need its directory path and name
 //// if target is dir or file exceeds specific size, return the zipped result
