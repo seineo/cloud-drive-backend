@@ -4,12 +4,16 @@ import (
 	"CloudDrive/middleware"
 	"CloudDrive/model"
 	"CloudDrive/request"
+	"CloudDrive/service"
 	"encoding/json"
 	"fmt"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+	"io"
+	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -38,12 +42,12 @@ func RegisterFilesRoutes(router *gin.Engine) {
 	group := router.Group("/api/v1/files", middleware.AuthCheck)
 	group.POST("dir", createDir)
 	group.POST("file", uploadFile)
-	//group.GET("data/:fileHash", downloadFiles)
+	//group.GET("dir/:dirHash", downloadDir)
+	group.GET("file/:fileHash", downloadFile)
 
 	// we don't need metadata of specific file, since front end would show all files in a directory
 	group.GET("dir/:dirHash", getFilesMetadata)
 	////group.POST("share/*dirPath", shareFiles)
-	//group.GET("hash/:fileHash", fileExists)
 	//group.POST("chunks", uploadFileChunk)
 	//group.POST("chunks/:fileHash", mergeFileChunks)
 	//group.GET("chunks/:fileHash", getMissedChunks)
@@ -65,6 +69,7 @@ func createDir(c *gin.Context) {
 		Hash:       dirRequest.Hash,
 		UserID:     userID.(uint),
 		Name:       dirRequest.Name,
+		Path:       dirRequest.Path,
 		ParentHash: &dirRequest.DirHash,
 		CreateAt:   time.Now(),
 	})
@@ -139,65 +144,81 @@ func getFilesMetadata(c *gin.Context) {
 	return
 }
 
-//// download directory or normal file, both need its directory path and name
-//// if target is dir or file exceeds specific size, return the zipped result
-//// else return the file itself
-//func downloadFiles(c *gin.Context) {
-//	fileHash := c.Param("fileHash")
-//	if fileHash == "" {
-//		c.JSON(400, gin.H{"message": "dirPath and fileName cannot be empty"})
-//		return
-//	}
-//	// get user info
-//	session := sessions.Default(c)
-//	userID := session.Get("userID")
-//	// get file metadata
-//	fileInfo, err := model.GetFileMetadata(fileHash)
-//	if err != nil {
-//		c.JSON(500, gin.H{"message": "failed to get file metadata", "description": err.Error()})
-//	}
-//	// if file is dir or its size exceeds the threshold, we zip file and name the zipped file by file hash
-//	// not for image, video and audio files since they have been archived to some extent
-//	isArchived := false
-//	if fileInfo.FileType == "dir" || (fileInfo.Size > ArchiveThreshold &&
-//		!strings.HasPrefix(fileInfo.FileType, "image") && !strings.HasPrefix(fileInfo.FileType, "audio") &&
-//		!strings.HasPrefix(fileInfo.FileType, "video")) {
-//		isArchived = true
-//		err = service.ArchiveFile(userID.(uint), fileInfo.Hash, fileInfo.DirPath, fileInfo.Name,
-//			filepath.Join(TempFileStoragePath, fileInfo.Hash))
-//		if err != nil {
-//			c.JSON(500, gin.H{"message": "failed to archive file", "description": err.Error()})
-//			return
-//		}
-//		log.WithFields(logrus.Fields{
-//			"fileName":   fileInfo.Name,
-//			"zippedPath": filepath.Join(TempFileStoragePath, fileInfo.Hash),
-//		}).Info("file archived")
-//	}
-//	// write response header
-//	c.Header("Content-Disposition", "attachment; filename="+fileInfo.Name) // download named by filename
-//	c.Header("Content-Type", "application/octet-stream")                   // binary stream
-//	// return the file
-//	if isArchived {
-//		file, err := os.Open(filepath.Join(TempFileStoragePath, fileInfo.Hash))
-//		if err != nil {
-//			c.JSON(500, gin.H{"message": "failed to open file", "description": err.Error()})
-//			return
-//		}
-//		defer file.Close()
-//		c.Header("Content-Encoding", "zip")
-//		io.Copy(c.Writer, file)
-//	} else {
-//		file, err := os.Open(fileInfo.Location)
-//		if err != nil {
-//			c.JSON(500, gin.H{"message": "failed to open file", "description": err.Error()})
-//			return
-//		}
-//		defer file.Close()
-//		io.Copy(c.Writer, file)
-//	}
-//}
-//
+// download the whole directory and return zipped result
+func downloadDir(c *gin.Context) {
+
+}
+
+// download normal file
+// if target file exceeds size threshold, return zipped result
+// otherwise return the file itself
+func downloadFile(c *gin.Context) {
+	fileHash := c.Param("fileHash")
+	fileName := c.Query("fileName")
+	if fileHash == "" || fileName == "" {
+		c.JSON(400, gin.H{"message": "fileHash and fileName cannot be empty"})
+		return
+	}
+	// get file metadata
+	fileInfo, err := model.GetFileMetadata(fileHash)
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to get file metadata", "description": err.Error()})
+	}
+	// if size exceeds the threshold, we zip file and name the zipped file by file hash.
+	// Not for image, video and audio files since they have been archived to some extent
+	isArchived := false
+	log.Debug("file size: ", fileInfo.Size)
+	log.Debug("threshold: ", ArchiveThreshold)
+	if fileInfo.Size > ArchiveThreshold &&
+		!strings.HasPrefix(fileInfo.FileType, "image") && !strings.HasPrefix(fileInfo.FileType, "audio") &&
+		!strings.HasPrefix(fileInfo.FileType, "video") {
+		isArchived = true
+		err = service.ArchiveFile(fileInfo.Location, fileName, filepath.Join(TempFileStoragePath, fileInfo.Hash))
+		if err != nil {
+			c.JSON(500, gin.H{"message": "failed to archive file", "description": err.Error()})
+			return
+		}
+		log.WithFields(logrus.Fields{
+			"fileHash":   fileInfo.Hash,
+			"fileName":   fileName,
+			"zippedPath": filepath.Join(TempFileStoragePath, fileInfo.Hash),
+		}).Info("file archived")
+	}
+	// write response header
+	c.Header("Content-Type", "application/octet-stream") // binary stream
+	// return the file
+	if isArchived {
+		file, err := os.Open(filepath.Join(TempFileStoragePath, fileInfo.Hash))
+		if err != nil {
+			c.JSON(500, gin.H{"message": "failed to open file", "description": err.Error()})
+			return
+		}
+		defer func() { // delete the temporal zipped file
+			err := os.Remove(filepath.Join(TempFileStoragePath, fileInfo.Hash))
+			if err != nil {
+				log.WithFields(logrus.Fields{
+					"filePath": filepath.Join(TempFileStoragePath, fileInfo.Hash),
+				}).Error("failed to remove temporal zipped file")
+			}
+		}()
+		// download zip file and name it with extension `zip`
+		zipName := strings.Split(fileName, ".")[0] + ".zip"
+		log.Debug("zipName: ", zipName)
+		c.Header("Content-Disposition", "attachment; filename="+zipName)
+		c.Header("Content-Encoding", "zip")
+		io.Copy(c.Writer, file)
+	} else {
+		file, err := os.Open(fileInfo.Location)
+		if err != nil {
+			c.JSON(500, gin.H{"message": "failed to open file", "description": err.Error()})
+			return
+		}
+		defer file.Close()
+		c.Header("Content-Disposition", "attachment; filename="+fileName)
+		io.Copy(c.Writer, file)
+	}
+}
+
 //// share all contents under directories or specific files
 //// if files are shared to registered users (type: limit),
 ////
