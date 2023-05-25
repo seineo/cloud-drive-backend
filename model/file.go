@@ -19,6 +19,7 @@ type Directory struct {
 	Hash       string `gorm:"primaryKey"`
 	UserID     uint
 	Name       string
+	Path       string
 	CreateAt   time.Time
 	DeleteAt   gorm.DeletedAt `gorm:"index"`
 	ParentHash *string        `gorm:"size:191"` // virtual directory path shown for users
@@ -133,6 +134,16 @@ func GetFilesMetadata(dirHash string) ([]response.FileResponse, []response.DirRe
 		Joins("left join files on query.file_hash = files.hash").Find(&files)
 
 	return files, dirRepsonse, nil
+}
+
+// GetFileMetadata gets file metadata from database
+func GetFileMetadata(hash string) (*File, error) {
+	var file File
+	err := db.Where("hash = ?", hash).First(&file).Error
+	if err != nil {
+		return nil, err
+	}
+	return &file, nil
 }
 
 // FileExists checks whether file exists given hash name of the file.

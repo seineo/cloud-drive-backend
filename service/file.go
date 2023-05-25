@@ -1,6 +1,11 @@
 package service
 
-//
+import (
+	"archive/zip"
+	"io"
+	"os"
+)
+
 //// user-defined function to deal with file when walkDir pass by it
 //type myWalkDirFunc func(fileInfo *model.File, err error) error
 //
@@ -32,8 +37,7 @@ package service
 //	return nil
 //}
 //
-//// ArchiveFile archive single file or a directory in zip format
-//func ArchiveFile(userID uint, fileHash string, dirPath string, fileName string, dstPath string) error {
+//func ArchiveDir(fileInfo *model.File, dirHash string, dstPath string) error {
 //	// create a zip file and zip.Writer
 //	f, err := os.Create(dstPath)
 //	if err != nil {
@@ -48,9 +52,9 @@ package service
 //		if err != nil {
 //			return err
 //		}
-//		path := filepath.Join(fileInfo.DirPath, fileInfo.Name)
+//		path := filepath.Join(dirPath, fileInfo.Name)
 //		log.Debugf("walk file %s", path)
-//		// get relativce path
+//		// get relative path
 //		relPath, err := filepath.Rel(dirPath, path)
 //		if err != nil {
 //			log.WithError(err).Error("failed to get relative path")
@@ -91,7 +95,36 @@ package service
 //	err = walkDir(userID, fileHash, dirPath, fileName, walker)
 //	return err
 //}
-//
-//func GetChunkInfo(fileHash string) {
-//
-//}
+
+func ArchiveFile(location string, fileName string, dstPath string) error {
+	// create a zip file and zip.Writer
+	f, err := os.Create(dstPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	writer := zip.NewWriter(f)
+	defer writer.Close()
+
+	// create file header
+	header := &zip.FileHeader{
+		Name:   fileName,
+		Method: zip.Deflate,
+	}
+	// write file header to zip
+	zipFile, err := writer.CreateHeader(header)
+	if err != nil {
+		log.WithError(err).Error("failed to write file header")
+		return err
+	}
+	// write file content to zip
+	file, err := os.Open(location)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	io.Copy(zipFile, file)
+
+	return nil
+}
