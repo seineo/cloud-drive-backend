@@ -32,13 +32,4 @@ func init() {
 	if err != nil {
 		log.WithError(err).Fatal("fail to auto migrate models")
 	}
-	//err = db.AutoMigrate(&Share{})
-	//if err != nil {
-	//	log.WithError(err).Error("fail to auto migrate model share")
-	//}
-
-	err = db.SetupJoinTable(&Directory{}, "Files", &DirectoryFile{})
-	if err != nil {
-		log.WithError(err).Fatal("fail to set join table")
-	}
 }

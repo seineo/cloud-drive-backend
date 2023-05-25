@@ -21,10 +21,10 @@ func CreateUser(user *User) error {
 			return err
 		}
 		err := tx.Create(&Directory{
-			Hash:    user.RootHash,
-			UserID:  user.ID,
-			Name:    "我的云盘",
-			DirPath: "",
+			Hash:       user.RootHash,
+			UserID:     user.ID,
+			Name:       "我的云盘",
+			ParentHash: nil,
 		}).Error
 		if err != nil {
 			return err
