@@ -2,6 +2,7 @@ package handler
 
 import (
 	"CloudDrive/model"
+	"CloudDrive/request"
 	"github.com/alexedwards/argon2id"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -13,7 +14,7 @@ func RegisterUsersRoutes(router *gin.Engine) {
 }
 
 func register(c *gin.Context) {
-	var user model.User
+	var user request.UserRequest
 	err := c.Bind(&user)
 	if err != nil {
 		c.JSON(400, gin.H{"message": "invalid input data", "description": err.Error()})
@@ -37,7 +38,6 @@ func register(c *gin.Context) {
 	}
 
 	log.WithFields(logrus.Fields{
-		"userID":    user.ID,
 		"userName":  user.Name,
 		"userEmail": user.Email,
 	}).Info("created a new user")

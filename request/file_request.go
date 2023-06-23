@@ -3,7 +3,6 @@ package request
 type DirectoryRequest struct {
 	Hash    string `json:"hash" binding:"required"`
 	Name    string `json:"name" binding:"required"`
-	Path    string `json:"path" binding:"required"`
 	DirHash string `json:"dirHash" binding:"required"`
 }
 

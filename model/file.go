@@ -9,45 +9,51 @@ import (
 )
 
 type File struct {
-	Hash     string `gorm:"primaryKey"` // hash value of file content
+	Hash     string `gorm:"primaryKey;size:255"` // hash value of file content
 	FileType string // dir, pdf, img, video...
 	Size     uint
 	Location string // real file storage path
 }
 
 type Directory struct {
-	Hash       string `gorm:"primaryKey"`
+	Hash       string `gorm:"primaryKey;size:255"`
 	UserID     uint
 	Name       string
-	Path       string
-	CreateAt   time.Time
-	DeleteAt   gorm.DeletedAt `gorm:"index"`
-	ParentHash *string        `gorm:"size:191"` // virtual directory path shown for users
+	CreatedAt  time.Time
+	DeletedAt  gorm.DeletedAt `gorm:"index"`
+	ParentHash *string        `gorm:"size:255"`
 	SubDirs    []Directory    `gorm:"foreignKey:ParentHash"`
+	Files      []File         `gorm:"many2many:directory_files;"`
 }
 
 type DirectoryFile struct {
-	DirectoryHash string `gorm:"primaryKey"`
-	FileHash      string `gorm:"primaryKey"`
+	DirectoryHash string
+	FileHash      string
 	FileName      string
-	CreateAt      time.Time
-	DeleteAt      gorm.DeletedAt `gorm:"index"`
+	CreatedAt     time.Time
+	DeletedAt     gorm.DeletedAt `gorm:"index"`
 }
 
 // StoreDirMetadata stores directory metadata and adds association with its parent directory.
-func StoreDirMetadata(dir *Directory) error {
+func StoreDirMetadata(directoryRequest *request.DirectoryRequest, userID uint) error {
 	err := db.Transaction(func(tx *gorm.DB) error {
 		// insert file data into file table
-		if err := tx.Create(dir).Error; err != nil {
+		dir := Directory{
+			Hash:       directoryRequest.Hash,
+			UserID:     userID,
+			Name:       directoryRequest.Name,
+			ParentHash: &directoryRequest.DirHash,
+		}
+		if err := tx.Create(&dir).Error; err != nil {
 			return err
 		}
 		// find parent directory
 		var parentDir Directory
-		if err := db.Where("hash = ?", dir.ParentHash).First(&parentDir).Error; err != nil {
+		if err := db.Where("hash = ?", directoryRequest.DirHash).First(&parentDir).Error; err != nil {
 			return err
 		}
 		// update association
-		if err := tx.Model(&parentDir).Association("SubDirs").Append(dir); err != nil {
+		if err := tx.Model(&parentDir).Association("SubDirs").Append(&dir); err != nil {
 			return err
 		}
 		return nil
@@ -61,13 +67,13 @@ func StoreDirMetadata(dir *Directory) error {
 // otherwise insert into two tables: `file`s and `directory_files` using transaction.
 // Ref link: https://stackoverflow.com/questions/65012939/custom-fields-in-many2many-jointable
 func StoreFileMetadata(fileRequest *request.FileRequest, fileStoragePath string, exists bool) error {
+	directoryFile := DirectoryFile{
+		DirectoryHash: fileRequest.DirHash,
+		FileHash:      fileRequest.FileHash,
+		FileName:      fileRequest.FileName,
+	}
 	if exists {
-		err := db.Create(&DirectoryFile{
-			DirectoryHash: fileRequest.DirHash,
-			FileHash:      fileRequest.FileHash,
-			FileName:      fileRequest.FileName,
-			CreateAt:      time.Now(),
-		}).Error
+		err := db.Create(&directoryFile).Error
 		if err != nil {
 			return err
 		}
@@ -84,12 +90,7 @@ func StoreFileMetadata(fileRequest *request.FileRequest, fileStoragePath string,
 				return err
 			}
 			// insert link between directory and file into association table
-			err := tx.Create(&DirectoryFile{
-				DirectoryHash: fileRequest.DirHash,
-				FileHash:      fileRequest.FileHash,
-				FileName:      fileRequest.FileName,
-				CreateAt:      time.Now(),
-			}).Error
+			err := tx.Create(&directoryFile).Error
 			if err != nil {
 				return err
 			}
@@ -100,10 +101,15 @@ func StoreFileMetadata(fileRequest *request.FileRequest, fileStoragePath string,
 	return nil
 }
 
-// GetFilesMetadata returns the list of file metadata and subdirectory metadata when directory is found.
+//
+//func GetSubDirectories(dirHash string) ([]Directory, error) {
+//
+//}
+
+// GetFilesMetadata returns the list of file metadata and subdirectory metadata.
 // Note that directory hash is generated using uuid, so we treat it unique.
 func GetFilesMetadata(dirHash string) ([]response.FileResponse, []response.DirResponse, error) {
-	var files []response.FileResponse
+	var fileResponses []response.FileResponse
 	var dirs []Directory
 	var parentDir Directory
 
@@ -116,24 +122,33 @@ func GetFilesMetadata(dirHash string) ([]response.FileResponse, []response.DirRe
 	}
 
 	// construct directories in response
-	var dirRepsonse []response.DirResponse
+	var dirResponses []response.DirResponse
 	for _, dir := range dirs {
-		dirRepsonse = append(dirRepsonse, response.DirResponse{
-			Hash:     dir.Hash,
-			Name:     dir.Name,
-			CreateAt: dir.CreateAt,
+		dirResponses = append(dirResponses, response.DirResponse{
+			Hash:      dir.Hash,
+			Name:      dir.Name,
+			CreatedAt: dir.CreatedAt,
 		})
 	}
 
-	// left join tables `directory_files` and `files` to get files
-	subQuery := db.Select("directory_hash, file_hash, file_name, create_at").Table("directory_files").
+	//left join tables `directory_files` and `files` to get files info
+	subQuery := db.Select("directory_hash, file_hash, file_name, created_at").Table("directory_files").
 		Where("directory_hash = ?", dirHash)
 	db.Debug().
-		Select("file_hash as hash, file_name as name, file_type as type, size, create_at").
+		Select("file_hash as hash, file_name as name, file_type as type, size, created_at").
 		Table("(?) as query", subQuery).
-		Joins("left join files on query.file_hash = files.hash").Find(&files)
+		Joins("left join files on query.file_hash = files.hash").Find(&fileResponses)
 
-	return files, dirRepsonse, nil
+	return fileResponses, dirResponses, nil
+}
+
+func GetDirMetadata(hash string) (*Directory, error) {
+	var dir Directory
+	err := db.Where("hash = ?", hash).First(&dir).Error
+	if err != nil {
+		return nil, err
+	}
+	return &dir, nil
 }
 
 // GetFileMetadata gets file metadata from database

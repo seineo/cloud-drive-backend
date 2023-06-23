@@ -26,10 +26,15 @@ func init() {
 		log.WithError(err).Fatal("fail to connect mysql database")
 	}
 	db = dbConn
-
+	// SetUpJoinTable should set before AutoMigrate
+	err = db.SetupJoinTable(&Directory{}, "Files", &DirectoryFile{})
+	if err != nil {
+		log.WithError(err).Fatal("fail to set up join table")
+	}
 	// auto migration for models, for example creating tables automatically
-	err = db.AutoMigrate(&User{}, &File{}, &Directory{}, &DirectoryFile{})
+	err = db.AutoMigrate(&User{}, &File{}, &Directory{})
 	if err != nil {
 		log.WithError(err).Fatal("fail to auto migrate models")
 	}
+
 }
