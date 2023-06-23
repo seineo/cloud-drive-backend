@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 )
 
 var FileStoragePath = configs.Storage.DiskStoragePath
@@ -42,18 +41,17 @@ func RegisterFilesRoutes(router *gin.Engine) {
 	group := router.Group("/api/v1/files", middleware.AuthCheck)
 	group.POST("dir", createDir)
 	group.POST("file", uploadFile)
-	//group.GET("dir/:dirHash", downloadDir)
+	group.GET("dir/:dirHash", downloadDir)
 	group.GET("file/:fileHash", downloadFile)
 
 	// we don't need metadata of specific file, since front end would show all files in a directory
-	group.GET("dir/:dirHash", getFilesMetadata)
+	group.GET("metadata/dir/:dirHash", getFilesMetadata)
 	////group.POST("share/*dirPath", shareFiles)
 	//group.POST("chunks", uploadFileChunk)
 	//group.POST("chunks/:fileHash", mergeFileChunks)
 	//group.GET("chunks/:fileHash", getMissedChunks)
 }
 
-// create a new directory
 func createDir(c *gin.Context) {
 	// bind request data
 	var dirRequest request.DirectoryRequest
@@ -65,14 +63,7 @@ func createDir(c *gin.Context) {
 	session := sessions.Default(c)
 	userID := session.Get("userID")
 	// store directory metadata
-	err := model.StoreDirMetadata(&model.Directory{
-		Hash:       dirRequest.Hash,
-		UserID:     userID.(uint),
-		Name:       dirRequest.Name,
-		Path:       dirRequest.Path,
-		ParentHash: &dirRequest.DirHash,
-		CreateAt:   time.Now(),
-	})
+	err := model.StoreDirMetadata(&dirRequest, userID.(uint))
 	if err != nil {
 		c.JSON(500, gin.H{"message": "failed to store file metadata", "description": err.Error()})
 		return
@@ -115,7 +106,7 @@ func uploadFile(c *gin.Context) {
 			return
 		}
 	}
-	// store file metadata to database
+	// store file metadata to database regardless of file existence
 	err = model.StoreFileMetadata(&fileInfo, fileStoragePath, exists)
 	if err != nil {
 		c.JSON(500, gin.H{"message": "failed to store file metadata", "description": err.Error()})
