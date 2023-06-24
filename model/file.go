@@ -2,7 +2,6 @@ package model
 
 import (
 	"CloudDrive/request"
-	"CloudDrive/response"
 	"errors"
 	"gorm.io/gorm"
 	"time"
@@ -32,6 +31,16 @@ type DirectoryFile struct {
 	FileName      string
 	CreatedAt     time.Time
 	DeletedAt     gorm.DeletedAt `gorm:"index"`
+}
+
+type FileInfo struct {
+	Hash      string
+	Name      string
+	Type      string
+	Size      uint
+	Location  string
+	CreatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
 // StoreDirMetadata stores directory metadata and adds association with its parent directory.
@@ -101,15 +110,10 @@ func StoreFileMetadata(fileRequest *request.FileRequest, fileStoragePath string,
 	return nil
 }
 
-//
-//func GetSubDirectories(dirHash string) ([]Directory, error) {
-//
-//}
-
 // GetFilesMetadata returns the list of file metadata and subdirectory metadata.
 // Note that directory hash is generated using uuid, so we treat it unique.
-func GetFilesMetadata(dirHash string) ([]response.FileResponse, []response.DirResponse, error) {
-	var fileResponses []response.FileResponse
+func GetFilesMetadata(dirHash string) ([]FileInfo, []Directory, error) {
+	var filesInfo []FileInfo
 	var dirs []Directory
 	var parentDir Directory
 
@@ -121,25 +125,15 @@ func GetFilesMetadata(dirHash string) ([]response.FileResponse, []response.DirRe
 		return nil, nil, err
 	}
 
-	// construct directories in response
-	var dirResponses []response.DirResponse
-	for _, dir := range dirs {
-		dirResponses = append(dirResponses, response.DirResponse{
-			Hash:      dir.Hash,
-			Name:      dir.Name,
-			CreatedAt: dir.CreatedAt,
-		})
-	}
-
 	//left join tables `directory_files` and `files` to get files info
-	subQuery := db.Select("directory_hash, file_hash, file_name, created_at").Table("directory_files").
+	subQuery := db.Select("directory_hash, file_hash, file_name, created_at, deleted_at").Table("directory_files").
 		Where("directory_hash = ?", dirHash)
 	db.Debug().
-		Select("file_hash as hash, file_name as name, file_type as type, size, created_at").
+		Select("file_hash as hash, file_name as name, file_type as type, size, location, created_at, deleted_at").
 		Table("(?) as query", subQuery).
-		Joins("left join files on query.file_hash = files.hash").Find(&fileResponses)
+		Joins("left join files on query.file_hash = files.hash").Find(&filesInfo)
 
-	return fileResponses, dirResponses, nil
+	return filesInfo, dirs, nil
 }
 
 func GetDirMetadata(hash string) (*Directory, error) {
