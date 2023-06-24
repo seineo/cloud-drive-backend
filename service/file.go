@@ -1,101 +1,126 @@
 package service
 
 import (
+	"CloudDrive/model"
 	"archive/zip"
 	"io"
 	"os"
+	"path/filepath"
 )
 
-//// user-defined function to deal with file when walkDir pass by it
-//type myWalkDirFunc func(fileInfo *model.File, err error) error
-//
-//// descends file/dir at dirPath/fileName and calls walkDirFn when pass by each file
-//// note that when walkDir meets error, it lets walkDirFn deal with that.
-//func walkDir(userID uint, fileHash string, dirPath string, fileName string, walkDirFn myWalkDirFunc) error {
-//	file, err := model.GetFileMetadata(fileHash) // info includes file type and location etc.
-//	if err != nil {
-//		return err
-//	}
-//	// call walkDirFn the first time for root file.
-//	// If there's an error during walkDirFn, or it is a single file, return
-//	if err := walkDirFn(file, nil); err != nil || file.FileType != "dir" {
-//		return err
-//	}
-//	// filetype is dir
-//	filesMetadata, err := model.GetFilesMetadata(userID, filepath.Join(dirPath, fileName))
-//	if err != nil {
-//		// second call for root file, to report ReadDir error
-//		err = walkDirFn(file, err)
-//		return err
-//	}
-//	for _, file1 := range filesMetadata {
-//		err := walkDir(userID, file1.Hash, file1.DirPath, file1.Name, walkDirFn)
-//		if err != nil {
-//			return err
-//		}
-//	}
-//	return nil
-//}
-//
-//func ArchiveDir(fileInfo *model.File, dirHash string, dstPath string) error {
-//	// create a zip file and zip.Writer
-//	f, err := os.Create(dstPath)
-//	if err != nil {
-//		return err
-//	}
-//	defer f.Close()
-//
-//	writer := zip.NewWriter(f)
-//	defer writer.Close()
-//	// go through all the files of the srcPath
-//	walker := func(fileInfo *model.File, err error) error {
-//		if err != nil {
-//			return err
-//		}
-//		path := filepath.Join(dirPath, fileInfo.Name)
-//		log.Debugf("walk file %s", path)
-//		// get relative path
-//		relPath, err := filepath.Rel(dirPath, path)
-//		if err != nil {
-//			log.WithError(err).Error("failed to get relative path")
-//			return err
-//		}
-//
-//		// create file header
-//		header := &zip.FileHeader{
-//			Name:   relPath,
-//			Method: zip.Deflate,
-//		}
-//		if fileInfo.FileType == "dir" { //  直接返回nil会忽略空目录，需要在这里创建一下目录再返回
-//			header.Name += "/"
-//			header.SetMode(0755)
-//			_, err = writer.CreateHeader(header)
-//			return err
-//		}
-//		// file type is not directory
-//
-//		// write file header to zip
-//		zipFile, err := writer.CreateHeader(header)
-//		if err != nil {
-//			log.WithError(err).Error("failed to write file header")
-//			return err
-//		}
-//		// write file content to zip
-//		file, err := os.Open(fileInfo.Location)
-//		if err != nil {
-//			return err
-//		}
-//		defer file.Close()
-//		_, err = io.Copy(zipFile, file)
-//		if err != nil {
-//			return err
-//		}
-//		return nil
-//	}
-//	err = walkDir(userID, fileHash, dirPath, fileName, walker)
-//	return err
-//}
+// FileInfo is a data structure used by Walk to pass file information
+type FileInfo struct {
+	IsDir    bool
+	Hash     string
+	Name     string
+	Location string // not empty only when !isDir
+}
 
+// MyWalkFunc is a user-defined function called by Walk to visit each file or directory.
+// Errors in Walk will be passed to MyWalkFunc to deal with,
+// and the errors thrown by MyWalkFunc will be thrown by Walk then.
+type MyWalkFunc func(path string, fileInfo FileInfo, err error) error
+
+// Walk descends path and calls walkFn for each file or directory.
+// (This function is implemented with reference to the filepath.Walk function in the standard library.)
+func Walk(path string, fileInfo FileInfo, walkFn MyWalkFunc) error {
+	if !fileInfo.IsDir {
+		return walkFn(path, fileInfo, nil)
+	}
+	files, dirs, err := model.GetFilesMetadata(fileInfo.Hash)
+	if err = walkFn(path, fileInfo, err); err != nil {
+		return err
+	}
+	for _, file := range files {
+		filePath := filepath.Join(path, file.Name)
+		subFileInfo := FileInfo{
+			IsDir:    false,
+			Hash:     file.Hash,
+			Name:     file.Name,
+			Location: file.Location,
+		}
+		if err = walkFn(filePath, subFileInfo, nil); err != nil {
+			return err
+		}
+	}
+	for _, dir := range dirs {
+		dirPath := filepath.Join(path, dir.Name)
+		subDirInfo := FileInfo{
+			IsDir: true,
+			Hash:  dir.Hash,
+			Name:  dir.Name,
+		}
+		if err = Walk(dirPath, subDirInfo, walkFn); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ArchiveDir archives a directory to dstPath, given its path(as zip root) and hash.
+func ArchiveDir(root string, hash string, dstPath string) error {
+	// create a zip file and zip.Writer
+	f, err := os.Create(dstPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	writer := zip.NewWriter(f)
+	defer writer.Close()
+	// find the directory from db
+	dir, err := model.GetDirMetadata(hash)
+	if err != nil {
+		return err
+	}
+	dirInfo := FileInfo{
+		IsDir: true,
+		Hash:  hash,
+		Name:  dir.Name,
+	}
+	// define MyWalkFn
+	walker := func(path string, fileInfo FileInfo, err error) error {
+		if err != nil { // throw the error that Walk passes
+			return err
+		}
+		relativePath, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		// create file header
+		header := &zip.FileHeader{
+			Name:   relativePath,
+			Method: zip.Deflate,
+		}
+		if fileInfo.IsDir { //  if isDir, we will ignore empty directory if return nil directly
+			header.Name += "/"
+			header.SetMode(0755)
+			_, err = writer.CreateHeader(header)
+			return err
+		}
+		// file type is not directory
+		zipFile, err := writer.CreateHeader(header)
+		if err != nil {
+			log.WithError(err).Error("failed to write file header")
+			return err
+		}
+		// write file content to zip
+		file, err := os.Open(fileInfo.Location)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		_, err = io.Copy(zipFile, file)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	err = Walk(root, dirInfo, walker)
+	return err
+}
+
+// ArchiveFile archives single file given its storage location, name shown for users and destination path
 func ArchiveFile(location string, fileName string, dstPath string) error {
 	// create a zip file and zip.Writer
 	f, err := os.Create(dstPath)

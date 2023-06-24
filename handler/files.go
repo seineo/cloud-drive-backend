@@ -4,6 +4,7 @@ import (
 	"CloudDrive/middleware"
 	"CloudDrive/model"
 	"CloudDrive/request"
+	"CloudDrive/response"
 	"CloudDrive/service"
 	"encoding/json"
 	"fmt"
@@ -131,13 +132,65 @@ func getFilesMetadata(c *gin.Context) {
 		c.JSON(500, gin.H{"message": fmt.Sprintf("failed to get files and dirs under dir %s", dirHash), "description": err.Error()})
 		return
 	}
-	c.JSON(200, gin.H{"files": files, "dirs": dirs})
+	// construct directories in response
+	var dirResponses []response.DirResponse
+	for _, dir := range dirs {
+		dirResponses = append(dirResponses, response.DirResponse{
+			Hash:      dir.Hash,
+			Name:      dir.Name,
+			CreatedAt: dir.CreatedAt,
+		})
+	}
+	// construct files in response
+	var fileResponses []response.FileResponse
+	for _, file := range files {
+		fileResponses = append(fileResponses, response.FileResponse{
+			Hash:      file.Hash,
+			Name:      file.Name,
+			Type:      file.Type,
+			Size:      file.Size,
+			CreatedAt: file.CreatedAt,
+		})
+	}
+	c.JSON(200, gin.H{"files": fileResponses, "dirs": dirResponses})
 	return
 }
 
 // download the whole directory and return zipped result
 func downloadDir(c *gin.Context) {
-
+	dirHash := c.Param("dirHash")
+	path := c.Query("path")
+	err := service.ArchiveDir(path, dirHash, filepath.Join(TempFileStoragePath, dirHash))
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to archive directory", "description": err.Error()})
+		return
+	}
+	log.WithFields(logrus.Fields{
+		"hash":       dirHash,
+		"path":       path,
+		"zippedPath": filepath.Join(TempFileStoragePath, dirHash),
+	}).Info("directory archived")
+	file, err := os.Open(filepath.Join(TempFileStoragePath, dirHash))
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to open file", "description": err.Error()})
+		return
+	}
+	defer func() { // delete the temporal zipped file
+		err := os.Remove(filepath.Join(TempFileStoragePath, dirHash))
+		if err != nil {
+			log.WithFields(logrus.Fields{
+				"filePath": filepath.Join(TempFileStoragePath, dirHash),
+			}).Error("failed to remove temporal zipped file")
+		}
+	}()
+	// download zip file and name it with extension `zip`
+	slice := strings.Split(path, "/")
+	zipName := slice[len(slice)-1] + ".zip"
+	log.Debug("zipName: ", zipName)
+	c.Header("Content-Type", "application/octet-stream") // binary stream
+	c.Header("Content-Disposition", "attachment; filename="+zipName)
+	c.Header("Content-Encoding", "zip")
+	io.Copy(c.Writer, file)
 }
 
 // download normal file
@@ -155,7 +208,7 @@ func downloadFile(c *gin.Context) {
 	if err != nil {
 		c.JSON(500, gin.H{"message": "failed to get file metadata", "description": err.Error()})
 	}
-	// if size exceeds the threshold, we zip file and name the zipped file by file hash.
+	// if size exceeds the threshold, we zip file and name the zipped file by file name.
 	// Not for image, video and audio files since they have been archived to some extent
 	isArchived := false
 	log.Debug("file size: ", fileInfo.Size)
