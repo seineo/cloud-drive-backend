@@ -408,6 +408,7 @@ func uploadFileChunk(c *gin.Context) {
 			return
 		}
 		chunkInfo.Indexes[chunkRequest.Index] = chunkRequest.ChunkHash
+		log.Debugf("index: %d, chunk hash: %s", chunkRequest.Index, chunkRequest.ChunkHash)
 	}
 	chunkJson, err := json.Marshal(chunkInfo)
 	if err != nil {
@@ -482,7 +483,7 @@ func mergeFileChunks(c *gin.Context) {
 	}
 	chunkMutex.Unlock()
 	// check whether all chunks are uploaded
-	for i := 1; uint(i) <= chunkInfo.TotalChunks; i++ {
+	for i := 0; uint(i) < chunkInfo.TotalChunks; i++ {
 		_, ok := chunkInfo.Indexes[uint(i)]
 		if !ok {
 			c.JSON(400, gin.H{"message": "failed to merge chunks", "missedChunk": i})
@@ -490,7 +491,7 @@ func mergeFileChunks(c *gin.Context) {
 		}
 	}
 	// read file in order and write into target file
-	for i := 1; uint(i) <= chunkInfo.TotalChunks; i++ {
+	for i := 0; uint(i) < chunkInfo.TotalChunks; i++ {
 		chunkHash := chunkInfo.Indexes[uint(i)]
 		chunkData, err := os.ReadFile(filepath.Join(chunkDir, chunkHash))
 		if err != nil {
@@ -545,17 +546,13 @@ func getMissedChunks(c *gin.Context) {
 	}
 	// find missed chunks
 	missedChunks := []uint{}
-	for i := 1; uint(i) <= chunkInfo.TotalChunks; i++ {
-		equal := false
-		var index uint
-		for index = range chunkInfo.Indexes {
-			if index == uint(i) {
-				equal = true
-				break
-			}
-		}
-		if !equal {
-			missedChunks = append(missedChunks, index)
+	chunkArray := make([]bool, chunkInfo.TotalChunks)
+	for index := range chunkInfo.Indexes {
+		chunkArray[index] = true
+	}
+	for i := 0; i < len(chunkArray); i++ {
+		if !chunkArray[i] {
+			missedChunks = append(missedChunks, uint(i))
 		}
 	}
 	c.JSON(200, gin.H{"exists": true, "missedChunks": missedChunks})
