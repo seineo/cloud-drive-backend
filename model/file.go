@@ -136,6 +136,31 @@ func GetFilesMetadata(dirHash string) ([]FileInfo, []Directory, error) {
 	return filesInfo, dirs, nil
 }
 
+// GetAllFilesUnderDir returns all files under given directory
+func GetAllFilesUnderDir(dirHash string) ([]File, error) {
+	var files []File
+	var dirs []Directory
+	var parentDir Directory
+	if err := db.Where("hash = ?", dirHash).First(&parentDir).Error; err != nil {
+		return nil, err
+	}
+	if err := db.Model(&parentDir).Association("Files").Find(&files); err != nil {
+		return nil, err
+	}
+	if err := db.Model(&parentDir).Association("SubDirs").Find(&dirs); err != nil {
+		return nil, err
+	}
+	for _, dir := range dirs {
+		curFiles, err := GetAllFilesUnderDir(dir.Hash)
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, curFiles...)
+	}
+	return files, nil
+
+}
+
 func GetDirMetadata(hash string) (*Directory, error) {
 	var dir Directory
 	err := db.Where("hash = ?", hash).First(&dir).Error
