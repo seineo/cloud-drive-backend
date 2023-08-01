@@ -8,10 +8,13 @@ import (
 )
 
 type File struct {
-	Hash     string `gorm:"primaryKey;size:255"` // hash value of file content
-	FileType string // dir, pdf, img, video...
-	Size     uint
-	Location string // real file storage path
+	Hash      string `gorm:"primaryKey;size:255"` // hash value of file content
+	FileType  string // dir, pdf, img, video...
+	Size      uint
+	Location  string // real file storage path
+	RefCount  uint
+	CreatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
 type Directory struct {
@@ -72,7 +75,7 @@ func StoreDirMetadata(directoryRequest *request.DirectoryRequest, userID uint) e
 }
 
 // StoreFileMetadata stores file metadata to database.
-// If file exists, insert file metadata into table `directory_files` only,
+// If file exists, insert file metadata into table `directory_files` and update reference count in table `files`,
 // otherwise insert into two tables: `file`s and `directory_files` using transaction.
 // Ref link: https://stackoverflow.com/questions/65012939/custom-fields-in-many2many-jointable
 func StoreFileMetadata(fileRequest *request.FileRequest, fileStoragePath string, exists bool) error {
@@ -82,16 +85,25 @@ func StoreFileMetadata(fileRequest *request.FileRequest, fileStoragePath string,
 		FileName:      fileRequest.FileName,
 	}
 	if exists {
-		err := db.Create(&directoryFile).Error
-		if err != nil {
-			return err
-		}
+		err := db.Transaction(func(tx *gorm.DB) error {
+			if err := tx.Create(&directoryFile).Error; err != nil {
+				return err
+			}
+			// update reference count
+			if err := tx.Model(&File{}).Where("hash = ?", fileRequest.FileHash).
+				Update("ref_count", gorm.Expr("ref_count + ?", 1)).Error; err != nil {
+				return err
+			}
+			return nil
+		})
+		return err
 	} else {
 		file := &File{
 			Hash:     fileRequest.FileHash,
 			FileType: fileRequest.FileType,
 			Size:     fileRequest.FileSize,
 			Location: fileStoragePath,
+			RefCount: 1,
 		}
 		err := db.Transaction(func(tx *gorm.DB) error {
 			// insert file data into file table
