@@ -264,6 +264,7 @@ func deleteFile(c *gin.Context) {
 		c.JSON(400, gin.H{"message": "request data is invalid", "description": err.Error()})
 		return
 	}
+	os.Remove(filepath.Join(FileStoragePath, fileHash))
 	if err := model.DeleteFile(fileDeleteRequest.DirHash, fileHash); err != nil {
 		c.JSON(500, gin.H{"message": "failed to delete file", "description": err.Error()})
 		return
