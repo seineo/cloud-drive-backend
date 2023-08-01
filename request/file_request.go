@@ -25,3 +25,7 @@ type CurrentChunks struct {
 	TotalChunks uint            `json:"totalChunks"`
 	Indexes     map[uint]string `json:"indexes"`
 }
+
+type FileDeleteRequest struct {
+	DirHash string `json:"dirHash" binding:"required"`
+}

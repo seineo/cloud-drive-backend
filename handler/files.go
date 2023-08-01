@@ -31,7 +31,9 @@ func RegisterFilesRoutes(router *gin.Engine) {
 	group.POST("dir", createDir)
 	group.POST("file", uploadFile)
 	group.GET("dir/:dirHash", downloadDir)
+	group.DELETE("dir/:dirHash", deleteDir)
 	group.GET("file/:fileHash", downloadFile)
+	group.DELETE("file/:fileHash", deleteFile)
 
 	group.GET("metadata/dir/:dirHash", getFilesMetadata)
 	group.GET("metadata/file/:fileHash", fileExists)
@@ -249,6 +251,24 @@ func downloadFile(c *gin.Context) {
 		c.Header("Content-Disposition", "attachment; filename="+fileName)
 		io.Copy(c.Writer, file)
 	}
+}
+
+func deleteDir(c *gin.Context) {
+
+}
+
+func deleteFile(c *gin.Context) {
+	fileHash := c.Param("fileHash")
+	var fileDeleteRequest request.FileDeleteRequest
+	if err := c.Bind(&fileDeleteRequest); err != nil {
+		c.JSON(400, gin.H{"message": "request data is invalid", "description": err.Error()})
+		return
+	}
+	if err := model.DeleteFile(fileDeleteRequest.DirHash, fileHash); err != nil {
+		c.JSON(500, gin.H{"message": "failed to delete file", "description": err.Error()})
+		return
+	}
+	c.Writer.WriteHeader(204)
 }
 
 // share all contents under directories or specific files

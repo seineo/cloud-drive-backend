@@ -173,6 +173,33 @@ func GetAllFilesUnderDir(dirHash string) ([]File, error) {
 
 }
 
+func DeleteFile(dirHash string, fileHash string) error {
+	err := db.Transaction(func(tx *gorm.DB) error {
+		// soft delete in table `directory_files`
+		if err := tx.Where("directory_hash = ? and file_hash = ?",
+			dirHash, fileHash).Delete(&DirectoryFile{}).Error; err != nil {
+			return err
+		}
+		// decrease reference count in table `files`
+		if err := tx.Model(&File{}).Where("hash = ?", fileHash).
+			Update("ref_count", gorm.Expr("ref_count - ?", 1)).Error; err != nil {
+			return err
+		}
+		// if reference count equals 0, soft delete
+		var file File
+		if err := tx.Where("hash = ?", fileHash).First(&file).Error; err != nil {
+			return err
+		}
+		if file.RefCount == 0 {
+			if err := tx.Delete(&file).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	return err
+}
+
 func GetDirMetadata(hash string) (*Directory, error) {
 	var dir Directory
 	err := db.Where("hash = ?", hash).First(&dir).Error
