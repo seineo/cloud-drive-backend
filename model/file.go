@@ -202,11 +202,9 @@ func DeleteFile(dirHash string, fileHash string) error {
 }
 
 func DeleteStaleFiles() {
-	log.Println("every 30s")
 	config := config2.GetConfig()
 	//configs.Storage.DiskStoragePath
 	staleTime := time.Now().Add(-config.FileStaleTime)
-	log.Println("stale time :", staleTime)
 	var files []File
 	if err := db.Unscoped().Where("deleted_at <= ?", staleTime).Find(&files).Error; err != nil {
 		log.Errorf("failed to find stale files, error: %v\n", err.Error())

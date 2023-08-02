@@ -1,6 +1,7 @@
 package service
 
 import (
+	"CloudDrive/config"
 	"CloudDrive/model"
 	"archive/zip"
 	"github.com/robfig/cron/v3"
@@ -157,6 +158,6 @@ func ArchiveFile(location string, fileName string, dstPath string) error {
 
 func ScheduleDeleteStaleFiles() {
 	c := cron.New()
-	c.AddFunc("@every 30s", model.DeleteStaleFiles)
+	c.AddFunc(config.GetConfig().FileStaleTimeSpec, model.DeleteStaleFiles)
 	c.Start()
 }
