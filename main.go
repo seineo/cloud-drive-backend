@@ -3,6 +3,7 @@ package main
 import (
 	"CloudDrive/config"
 	"CloudDrive/handler"
+	"CloudDrive/service"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"os"
@@ -27,6 +28,8 @@ func init() {
 
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU() * 2)
+
+	service.ScheduleDeleteStaleFiles()
 
 	engine := gin.Default()
 	handler.InitHandlers(engine)

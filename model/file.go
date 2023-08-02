@@ -1,6 +1,7 @@
 package model
 
 import (
+	config2 "CloudDrive/config"
 	"CloudDrive/request"
 	"errors"
 	"gorm.io/gorm"
@@ -25,7 +26,7 @@ type Directory struct {
 	DeletedAt  gorm.DeletedAt `gorm:"index"`
 	ParentHash *string        `gorm:"size:255"`
 	SubDirs    []Directory    `gorm:"foreignKey:ParentHash"`
-	Files      []File         `gorm:"many2many:directory_files;"`
+	Files      []File         `gorm:"many2many:directory_files;constraint:OnDelete:CASCADE;"`
 }
 
 type DirectoryFile struct {
@@ -198,6 +199,21 @@ func DeleteFile(dirHash string, fileHash string) error {
 		return nil
 	})
 	return err
+}
+
+func DeleteStaleFiles() {
+	log.Println("every 30s")
+	config := config2.GetConfig()
+	//configs.Storage.DiskStoragePath
+	staleTime := time.Now().Add(-config.FileStaleTime)
+	log.Println("stale time :", staleTime)
+	var files []File
+	if err := db.Unscoped().Where("deleted_at <= ?", staleTime).Find(&files).Error; err != nil {
+		log.Errorf("failed to find stale files, error: %v\n", err.Error())
+	}
+	if len(files) != 0 {
+		db.Unscoped().Delete(&files)
+	}
 }
 
 func GetDirMetadata(hash string) (*Directory, error) {
