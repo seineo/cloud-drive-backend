@@ -25,8 +25,8 @@ type Directory struct {
 	CreatedAt  time.Time
 	DeletedAt  gorm.DeletedAt `gorm:"index"`
 	ParentHash *string        `gorm:"size:255"`
-	SubDirs    []Directory    `gorm:"foreignKey:ParentHash"`
-	Files      []File         `gorm:"many2many:directory_files;constraint:OnDelete:CASCADE;"`
+	SubDirs    []Directory    `gorm:"foreignKey:ParentHash;"`                                 // cascade deletion will only delete one-level subdirectories
+	Files      []File         `gorm:"many2many:directory_files;constraint:OnDelete:CASCADE;"` // delete all user files after deleting real files
 }
 
 type DirectoryFile struct {
@@ -149,31 +149,7 @@ func GetFilesMetadata(dirHash string) ([]FileInfo, []Directory, error) {
 	return filesInfo, dirs, nil
 }
 
-// GetAllFilesUnderDir returns all files under given directory
-func GetAllFilesUnderDir(dirHash string) ([]File, error) {
-	var files []File
-	var dirs []Directory
-	var parentDir Directory
-	if err := db.Where("hash = ?", dirHash).First(&parentDir).Error; err != nil {
-		return nil, err
-	}
-	if err := db.Model(&parentDir).Association("Files").Find(&files); err != nil {
-		return nil, err
-	}
-	if err := db.Model(&parentDir).Association("SubDirs").Find(&dirs); err != nil {
-		return nil, err
-	}
-	for _, dir := range dirs {
-		curFiles, err := GetAllFilesUnderDir(dir.Hash)
-		if err != nil {
-			return nil, err
-		}
-		files = append(files, curFiles...)
-	}
-	return files, nil
-
-}
-
+// DeleteFile deletes given file and reduces reference count of real file after deletion.
 func DeleteFile(dirHash string, fileHash string) error {
 	err := db.Transaction(func(tx *gorm.DB) error {
 		// soft delete in table `directory_files`
@@ -201,6 +177,7 @@ func DeleteFile(dirHash string, fileHash string) error {
 	return err
 }
 
+// DeleteStaleFiles regularly checks and deletes stale files.
 func DeleteStaleFiles() {
 	config := config2.GetConfig()
 	//configs.Storage.DiskStoragePath
@@ -214,6 +191,52 @@ func DeleteStaleFiles() {
 	}
 }
 
+// GetAllUnderDir returns all unique files and subdirectories under given directory.
+func GetAllUnderDir(dirHash string) ([]Directory, []DirectoryFile, error) {
+	var files []DirectoryFile
+	var dirs []Directory
+	var parentDir Directory
+	if err := db.Where("hash = ?", dirHash).First(&parentDir).Error; err != nil {
+		return nil, nil, err
+	}
+	if err := db.Model(&parentDir).Association("SubDirs").Find(&dirs); err != nil {
+		return nil, nil, err
+	}
+	if err := db.Where("directory_hash = ?", dirHash).Find(&files).Error; err != nil {
+		return nil, nil, err
+	}
+	for _, dir := range dirs {
+		curDirs, curFiles, err := GetAllUnderDir(dir.Hash)
+		if err != nil {
+			return nil, nil, err
+		}
+		files = append(files, curFiles...)
+		dirs = append(dirs, curDirs...)
+	}
+	return dirs, files, nil
+}
+
+// DeleteDir deletes given directory and the subdirectory and files under it.
+func DeleteDir(dirHash string) error {
+	dirs, files, err := GetAllUnderDir(dirHash)
+	if err != nil {
+		return err
+	}
+	err = db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Delete(&Directory{Hash: dirHash}).Error; err != nil {
+			return err
+		}
+		if err := tx.Delete(&dirs).Error; err != nil {
+			return err
+		}
+		if err := tx.Delete(&files).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	return err
+}
+
 func GetDirMetadata(hash string) (*Directory, error) {
 	var dir Directory
 	err := db.Where("hash = ?", hash).First(&dir).Error
@@ -223,7 +246,7 @@ func GetDirMetadata(hash string) (*Directory, error) {
 	return &dir, nil
 }
 
-// GetFileMetadata gets file metadata from database
+// GetFileMetadata gets file metadata from database.
 func GetFileMetadata(hash string) (*File, error) {
 	var file File
 	err := db.Where("hash = ?", hash).First(&file).Error

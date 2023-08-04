@@ -254,7 +254,12 @@ func downloadFile(c *gin.Context) {
 }
 
 func deleteDir(c *gin.Context) {
-
+	dirHash := c.Param("dirHash")
+	if err := model.DeleteDir(dirHash); err != nil {
+		c.JSON(500, gin.H{"message": "failed to delete directory", "description": err.Error()})
+		return
+	}
+	c.Writer.WriteHeader(204)
 }
 
 func deleteFile(c *gin.Context) {
