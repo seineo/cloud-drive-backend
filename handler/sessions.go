@@ -3,6 +3,7 @@ package handler
 import (
 	"CloudDrive/middleware"
 	"CloudDrive/model"
+	"CloudDrive/response"
 	"github.com/alexedwards/argon2id"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -59,7 +60,11 @@ func login(c *gin.Context) {
 		c.JSON(400, gin.H{"message": "wrong password"})
 		return
 	}
-	c.JSON(200, gin.H{"user": user})
+	c.JSON(200, response.UserSignResponse{
+		Email:    user.Email,
+		Name:     user.Name,
+		RootHash: user.RootHash,
+	})
 }
 
 func logout(c *gin.Context) {

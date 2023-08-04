@@ -15,7 +15,7 @@ type User struct {
 }
 
 // CreateUser stores user info in table `users`, and inserts root directory metadata into table `directories`
-func CreateUser(userRequest *request.UserRequest) error {
+func CreateUser(userRequest *request.UserSignUpRequest) (*User, error) {
 	user := &User{
 		Name:     userRequest.Name,
 		Email:    userRequest.Email,
@@ -27,8 +27,10 @@ func CreateUser(userRequest *request.UserRequest) error {
 		UserID: user.ID,
 		Name:   "我的云盘",
 	})
-	err := db.Create(user).Error
-	return err
+	if err := db.Create(user).Error; err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
 func GetUserByID(id uint) (*User, error) {

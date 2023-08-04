@@ -3,6 +3,7 @@ package handler
 import (
 	"CloudDrive/model"
 	"CloudDrive/request"
+	"CloudDrive/response"
 	"github.com/alexedwards/argon2id"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -10,11 +11,11 @@ import (
 
 func RegisterUsersRoutes(router *gin.Engine) {
 	group := router.Group("/api/v1/users")
-	group.POST("", register)
+	group.POST("", signUp)
 }
 
-func register(c *gin.Context) {
-	var user request.UserRequest
+func signUp(c *gin.Context) {
+	var user request.UserSignUpRequest
 	err := c.Bind(&user)
 	if err != nil {
 		c.JSON(400, gin.H{"message": "invalid input data", "description": err.Error()})
@@ -31,15 +32,19 @@ func register(c *gin.Context) {
 		return
 	}
 
-	err = model.CreateUser(&user)
+	userModel, err := model.CreateUser(&user)
 	if err != nil {
 		c.JSON(500, gin.H{"message": "failed to create a user", "description": err.Error()})
 		return
 	}
 
 	log.WithFields(logrus.Fields{
-		"userName":  user.Name,
-		"userEmail": user.Email,
+		"userName":  userModel.Name,
+		"userEmail": userModel.Email,
 	}).Info("created a new user")
-	c.JSON(200, gin.H{"user": user})
+	c.JSON(200, response.UserSignResponse{
+		Email:    userModel.Email,
+		Name:     userModel.Name,
+		RootHash: userModel.RootHash,
+	})
 }
