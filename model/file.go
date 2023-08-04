@@ -47,6 +47,8 @@ type FileInfo struct {
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
+var RefCountError = errors.New("reference count of the file is already 0")
+
 // StoreDirMetadata stores directory metadata and adds association with its parent directory.
 func StoreDirMetadata(directoryRequest *request.DirectoryRequest, userID uint) error {
 	err := db.Transaction(func(tx *gorm.DB) error {
@@ -149,24 +151,57 @@ func GetFilesMetadata(dirHash string) ([]FileInfo, []Directory, error) {
 	return filesInfo, dirs, nil
 }
 
+//// note: should run in a transaction
+//func decreaseRefCount(tx *gorm.DB, fileHash string) error {
+//	// find the file in table `files`
+//	var file File
+//	if err := tx.Where("hash = ?", fileHash).First(&file).Error; err != nil {
+//		return err
+//	}
+//	// check reference count
+//	if file.RefCount <= 0 {
+//		return RefCountError
+//	}
+//	// decrease reference count in table `files`
+//	if err := tx.Model(&File{}).Where("hash = ?", fileHash).
+//		Update("ref_count", gorm.Expr("ref_count - ?", 1)).Error; err != nil {
+//		return err
+//	}
+//	// if reference count equals 0, soft delete
+//	if file.RefCount == 0 {
+//		if err := tx.Delete(&file).Error; err != nil {
+//			return err
+//		}
+//	}
+//	return nil
+//}
+
 // DeleteFile deletes given file and reduces reference count of real file after deletion.
 func DeleteFile(dirHash string, fileHash string) error {
 	err := db.Transaction(func(tx *gorm.DB) error {
-		// soft delete in table `directory_files`
-		if err := tx.Where("directory_hash = ? and file_hash = ?",
-			dirHash, fileHash).Delete(&DirectoryFile{}).Error; err != nil {
-			return err
+		// soft delete in table `directory_files`, note in relation table we need where condition statement
+		result := tx.Where("directory_hash = ? and file_hash = ?", dirHash, fileHash).Delete(&DirectoryFile{})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 { // if it doesn't delete any row, then it should not decrease reference count
+			return nil
 		}
 		// decrease reference count in table `files`
 		if err := tx.Model(&File{}).Where("hash = ?", fileHash).
 			Update("ref_count", gorm.Expr("ref_count - ?", 1)).Error; err != nil {
 			return err
 		}
-		// if reference count equals 0, soft delete
+		// check the reference count in table `files`
 		var file File
 		if err := tx.Where("hash = ?", fileHash).First(&file).Error; err != nil {
 			return err
 		}
+		// check reference count, and it will roll back if error occurs
+		if file.RefCount < 0 {
+			return RefCountError
+		}
+		// if reference count equals 0, soft delete
 		if file.RefCount == 0 {
 			if err := tx.Delete(&file).Error; err != nil {
 				return err
@@ -229,8 +264,10 @@ func DeleteDir(dirHash string) error {
 		if err := tx.Delete(&dirs).Error; err != nil {
 			return err
 		}
-		if err := tx.Delete(&files).Error; err != nil {
-			return err
+		for _, file := range files {
+			if err := DeleteFile(file.DirectoryHash, file.FileHash); err != nil {
+				return err
+			}
 		}
 		return nil
 	})
