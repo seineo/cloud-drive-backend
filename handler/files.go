@@ -33,7 +33,7 @@ func RegisterFilesRoutes(router *gin.Engine) {
 	group.GET("dir/:dirHash", downloadDir)
 	group.DELETE("dir/:dirHash", deleteDir)
 	group.GET("file/:fileHash", downloadFile)
-	group.DELETE("file/:fileHash", deleteFile)
+	group.DELETE("file/:dirHash/:fileHash", deleteFile)
 
 	group.GET("metadata/dir/:dirHash", getFilesMetadata)
 	group.GET("metadata/file/:fileHash", fileExists)
@@ -264,12 +264,8 @@ func deleteDir(c *gin.Context) {
 
 func deleteFile(c *gin.Context) {
 	fileHash := c.Param("fileHash")
-	var fileDeleteRequest request.FileDeleteRequest
-	if err := c.Bind(&fileDeleteRequest); err != nil {
-		c.JSON(400, gin.H{"message": "request data is invalid", "description": err.Error()})
-		return
-	}
-	if err := model.DeleteFile(fileDeleteRequest.DirHash, fileHash); err != nil {
+	dirHash := c.Param("dirHash")
+	if err := model.DeleteFile(dirHash, fileHash); err != nil {
 		c.JSON(500, gin.H{"message": "failed to delete file", "description": err.Error()})
 		return
 	}
