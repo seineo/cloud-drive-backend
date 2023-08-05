@@ -144,7 +144,7 @@ func GetFilesMetadata(dirHash string) ([]FileInfo, []Directory, error) {
 	subQuery := db.Select("directory_hash, file_hash, file_name, created_at, deleted_at").Table("directory_files").
 		Where("directory_hash = ?", dirHash)
 	db.Debug().
-		Select("file_hash as hash, file_name as name, file_type as type, size, location, created_at, deleted_at").
+		Select("file_hash as hash, file_name as name, file_type as type, size, location, query.created_at").
 		Table("(?) as query", subQuery).
 		Joins("left join files on query.file_hash = files.hash").Find(&filesInfo)
 
