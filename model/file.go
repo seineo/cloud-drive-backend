@@ -258,11 +258,13 @@ func DeleteDir(dirHash string) error {
 		return err
 	}
 	err = db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Delete(&Directory{Hash: dirHash}).Error; err != nil {
+		if err := tx.Debug().Delete(&Directory{Hash: dirHash}).Error; err != nil {
 			return err
 		}
-		if err := tx.Delete(&dirs).Error; err != nil {
-			return err
+		if len(dirs) != 0 {
+			if err := tx.Debug().Delete(&dirs).Error; err != nil {
+				return err
+			}
 		}
 		for _, file := range files {
 			if err := DeleteFile(file.DirectoryHash, file.FileHash); err != nil {
