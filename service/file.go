@@ -29,7 +29,7 @@ func Walk(path string, fileInfo FileInfo, walkFn MyWalkFunc) error {
 	if !fileInfo.IsDir {
 		return walkFn(path, fileInfo, nil)
 	}
-	files, dirs, err := model.GetFilesMetadata(fileInfo.Hash)
+	files, dirs, err := model.GetFilesMetadata(fileInfo.Hash, false, "", "")
 	if err = walkFn(path, fileInfo, err); err != nil {
 		return err
 	}

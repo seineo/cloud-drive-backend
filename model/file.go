@@ -4,6 +4,7 @@ import (
 	config2 "CloudDrive/config"
 	"CloudDrive/request"
 	"errors"
+	"fmt"
 	"gorm.io/gorm"
 	"time"
 )
@@ -22,6 +23,7 @@ type Directory struct {
 	Hash       string `gorm:"primaryKey;size:255"`
 	UserID     uint
 	Name       string
+	IsStarred  bool
 	CreatedAt  time.Time
 	DeletedAt  gorm.DeletedAt `gorm:"index"`
 	ParentHash *string        `gorm:"size:255"`
@@ -33,6 +35,7 @@ type DirectoryFile struct {
 	DirectoryHash string
 	FileHash      string
 	FileName      string
+	IsStarred     bool // false -> don't filter, true -> filter
 	CreatedAt     time.Time
 	DeletedAt     gorm.DeletedAt `gorm:"index"`
 }
@@ -48,6 +51,7 @@ type FileInfo struct {
 }
 
 var RefCountError = errors.New("reference count of the file is already 0")
+var ColumnNotExistsError = errors.New("")
 
 // StoreDirMetadata stores directory metadata and adds association with its parent directory.
 func StoreDirMetadata(directoryRequest *request.DirectoryRequest, userID uint) error {
@@ -127,7 +131,7 @@ func StoreFileMetadata(fileRequest *request.FileRequest, fileStoragePath string,
 
 // GetFilesMetadata returns the list of file metadata and subdirectory metadata.
 // Note that directory hash is generated using uuid, so we treat it unique.
-func GetFilesMetadata(dirHash string) ([]FileInfo, []Directory, error) {
+func GetFilesMetadata(dirHash string, isStarred bool, sort string, order string) ([]FileInfo, []Directory, error) {
 	var filesInfo []FileInfo
 	var dirs []Directory
 	var parentDir Directory
@@ -136,18 +140,33 @@ func GetFilesMetadata(dirHash string) ([]FileInfo, []Directory, error) {
 	if err := db.Where("hash = ?", dirHash).First(&parentDir).Error; err != nil {
 		return nil, nil, err
 	}
-	if err := db.Model(&parentDir).Association("SubDirs").Find(&dirs); err != nil {
+	dirQuery := db.Model(&parentDir).Session(&gorm.Session{})
+	if isStarred {
+		dirQuery = dirQuery.Where("is_starred = ?", isStarred)
+	}
+	if len(sort) != 0 && len(order) != 0 {
+		dirQuery = dirQuery.Order(fmt.Sprintf("%s %s", sort, order))
+	}
+	if err := dirQuery.Association("SubDirs").Find(&dirs); err != nil {
 		return nil, nil, err
 	}
 
 	//left join tables `directory_files` and `files` to get files info
-	subQuery := db.Select("directory_hash, file_hash, file_name, created_at, deleted_at").Table("directory_files").
-		Where("directory_hash = ?", dirHash)
-	db.Debug().
-		Select("file_hash as hash, file_name as name, file_type as type, size, location, query.created_at").
-		Table("(?) as query", subQuery).
-		Joins("left join files on query.file_hash = files.hash").Find(&filesInfo)
-
+	fileSubQuery := db.Select("directory_hash, file_hash, file_name, created_at, deleted_at, is_starred").Table("directory_files").
+		Where("directory_hash = ?", dirHash).Session(&gorm.Session{})
+	if isStarred {
+		fileSubQuery = fileSubQuery.Where("is_starred = ?", isStarred)
+	}
+	fileQuery := db.Debug().
+		Select("file_hash as hash, file_name as name, file_type as type, size, location, is_starred, query.created_at").
+		Table("(?) as query", fileSubQuery).
+		Joins("left join files on query.file_hash = files.hash").Session(&gorm.Session{})
+	if len(sort) != 0 && len(order) != 0 {
+		fileQuery = fileQuery.Order(fmt.Sprintf("%s %s", sort, order))
+	}
+	if err := fileQuery.Find(&filesInfo).Error; err != nil {
+		return nil, nil, err
+	}
 	return filesInfo, dirs, nil
 }
 
@@ -305,9 +324,3 @@ func FileExists(hash string) (bool, error) {
 		return result.RowsAffected == 1, result.Error
 	}
 }
-
-//// DeleteFilesMetadata given directory path, delete the metadata of files under it
-//func DeleteFilesMetadata(userID uint, dirPath string) error {
-//	err := db.Where("user_id = ? and dir_path = ?", userID, dirPath).Delete(&File{}).Error
-//	return err
-//}

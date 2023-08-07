@@ -109,6 +109,13 @@ func uploadFile(c *gin.Context) {
 // get metadata of all files under given directory
 func getFilesMetadata(c *gin.Context) {
 	dirHash := c.Param("dirHash")
+	star := c.Query("star")
+	sort := c.Query("sort")
+	order := c.Query("order")
+	isStarred := false
+	if star == "true" {
+		isStarred = true
+	}
 	// get user info
 	session := sessions.Default(c)
 	userID := session.Get("userID")
@@ -117,13 +124,13 @@ func getFilesMetadata(c *gin.Context) {
 		"userID":  userID,
 	}).Info("trying to get file metadata")
 	// get metadata of all the files under the directory
-	files, dirs, err := model.GetFilesMetadata(dirHash)
+	files, dirs, err := model.GetFilesMetadata(dirHash, isStarred, sort, order)
 	if err != nil {
 		c.JSON(500, gin.H{"message": fmt.Sprintf("failed to get files and dirs under dir %s", dirHash), "description": err.Error()})
 		return
 	}
 	// construct files in response
-	var fileResponses []response.FileResponse
+	fileResponses := []response.FileResponse{}
 	for _, dir := range dirs {
 		fileResponses = append(fileResponses, response.FileResponse{
 			Hash:      dir.Hash,
@@ -142,7 +149,7 @@ func getFilesMetadata(c *gin.Context) {
 			CreatedAt: file.CreatedAt,
 		})
 	}
-	c.JSON(200, gin.H{"files": fileResponses})
+	c.JSON(200, fileResponses)
 	return
 }
 
