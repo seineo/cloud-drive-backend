@@ -37,6 +37,12 @@ func RegisterFilesRoutes(router *gin.Engine) {
 
 	group.GET("metadata/dir/:dirHash", getFilesMetadata)
 	group.GET("metadata/file/:fileHash", fileExists)
+
+	group.PUT("metadata/dir/:dirHash/star", starDir)
+	group.DELETE("metadata/dir/:dirHash/star", unstarDir)
+	group.PUT("metadata/file/:dirHash/:fileHash/star", starFile)
+	group.DELETE("metadata/file/:dirHash/:fileHash/star", unstarFile)
+
 	////group.POST("share/*dirPath", shareFiles)
 	group.POST("chunks", uploadFileChunk)
 	group.POST("chunks/:fileHash", mergeFileChunks)
@@ -584,4 +590,42 @@ func getMissedChunks(c *gin.Context) {
 		}
 	}
 	c.JSON(200, gin.H{"exists": true, "missedChunks": missedChunks})
+}
+
+func starDir(c *gin.Context) {
+	dirHash := c.Param("dirHash")
+	if err := model.StarDir(dirHash); err != nil {
+		c.JSON(500, gin.H{"message": "failed to star a directory", "description": err.Error()})
+		return
+	}
+	c.JSON(200, dirHash)
+}
+
+func unstarDir(c *gin.Context) {
+	dirHash := c.Param("dirHash")
+	if err := model.UnstarDir(dirHash); err != nil {
+		c.JSON(500, gin.H{"message": "failed to unstar a directory", "description": err.Error()})
+		return
+	}
+	c.Writer.WriteHeader(204)
+}
+
+func starFile(c *gin.Context) {
+	dirHash := c.Param("dirHash")
+	fileHash := c.Param("fileHash")
+	if err := model.StarFile(dirHash, fileHash); err != nil {
+		c.JSON(500, gin.H{"message": "failed to star a file", "description": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"dirHash": dirHash, "fileHash": fileHash})
+}
+
+func unstarFile(c *gin.Context) {
+	dirHash := c.Param("dirHash")
+	fileHash := c.Param("fileHash")
+	if err := model.UnstarFile(dirHash, fileHash); err != nil {
+		c.JSON(500, gin.H{"message": "failed to unstar a file", "description": err.Error()})
+		return
+	}
+	c.Writer.WriteHeader(204)
 }

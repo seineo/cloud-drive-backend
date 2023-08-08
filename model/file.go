@@ -324,3 +324,21 @@ func FileExists(hash string) (bool, error) {
 		return result.RowsAffected == 1, result.Error
 	}
 }
+
+func StarDir(dirHash string) error {
+	return db.Model(&Directory{Hash: dirHash}).Update("is_starred", true).Error
+}
+
+func UnstarDir(dirHash string) error {
+	return db.Model(&Directory{Hash: dirHash}).Update("is_starred", false).Error
+}
+
+func StarFile(dirHash string, fileHash string) error {
+	return db.Model(&DirectoryFile{}).Where("directory_hash = ? and file_hash = ?", dirHash, fileHash).
+		Update("is_starred", true).Error
+}
+
+func UnstarFile(dirHash string, fileHash string) error {
+	return db.Model(&DirectoryFile{}).Where("directory_hash = ? and file_hash = ?", dirHash, fileHash).
+		Update("is_starred", false).Error
+}
