@@ -37,7 +37,7 @@ func Walk(path string, fileInfo FileInfo, walkFn MyWalkFunc) error {
 		filePath := filepath.Join(path, file.Name)
 		subFileInfo := FileInfo{
 			IsDir:    false,
-			Hash:     file.Hash,
+			Hash:     file.FileHash,
 			Name:     file.Name,
 			Location: file.Location,
 		}

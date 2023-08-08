@@ -41,13 +41,14 @@ type DirectoryFile struct {
 }
 
 type FileInfo struct {
-	Hash      string
-	Name      string
-	Type      string
-	Size      uint
-	Location  string
-	CreatedAt time.Time
-	DeletedAt gorm.DeletedAt `gorm:"index"`
+	DirectoryHash string
+	FileHash      string
+	Name          string
+	Type          string
+	Size          uint
+	IsStarred     bool
+	Location      string
+	CreatedAt     time.Time
 }
 
 var RefCountError = errors.New("reference count of the file is already 0")
@@ -158,7 +159,7 @@ func GetFilesMetadata(dirHash string, isStarred bool, sort string, order string)
 		fileSubQuery = fileSubQuery.Where("is_starred = ?", isStarred)
 	}
 	fileQuery := db.Debug().
-		Select("file_hash as hash, file_name as name, file_type as type, size, location, is_starred, query.created_at").
+		Select("directory_hash, file_hash, file_name as name, file_type as type, size, location, is_starred, query.created_at").
 		Table("(?) as query", fileSubQuery).
 		Joins("left join files on query.file_hash = files.hash").Session(&gorm.Session{})
 	if len(sort) != 0 && len(order) != 0 {

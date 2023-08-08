@@ -139,20 +139,24 @@ func getFilesMetadata(c *gin.Context) {
 	fileResponses := []response.FileResponse{}
 	for _, dir := range dirs {
 		fileResponses = append(fileResponses, response.FileResponse{
-			Hash:      dir.Hash,
-			Name:      dir.Name,
-			Type:      "dir",
-			Size:      0,
-			CreatedAt: dir.CreatedAt,
+			DirectoryHash: dirHash,
+			FileHash:      dir.Hash,
+			Name:          dir.Name,
+			Type:          "dir",
+			Size:          0,
+			IsStarred:     dir.IsStarred,
+			CreatedAt:     dir.CreatedAt,
 		})
 	}
 	for _, file := range files {
 		fileResponses = append(fileResponses, response.FileResponse{
-			Hash:      file.Hash,
-			Name:      file.Name,
-			Type:      file.Type,
-			Size:      file.Size,
-			CreatedAt: file.CreatedAt,
+			DirectoryHash: dirHash,
+			FileHash:      file.FileHash,
+			Name:          file.Name,
+			Type:          file.Type,
+			Size:          file.Size,
+			IsStarred:     file.IsStarred,
+			CreatedAt:     file.CreatedAt,
 		})
 	}
 	c.JSON(200, fileResponses)
