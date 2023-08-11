@@ -49,6 +49,7 @@ type FileInfo struct {
 	IsStarred     bool
 	Location      string
 	CreatedAt     time.Time
+	DeletedAt     time.Time
 }
 
 var RefCountError = errors.New("reference count of the file is already 0")
@@ -159,7 +160,7 @@ func GetFilesMetadata(dirHash string, isStarred bool, sort string, order string)
 		fileSubQuery = fileSubQuery.Where("is_starred = ?", isStarred)
 	}
 	fileQuery := db.Debug().
-		Select("directory_hash, file_hash, file_name as name, file_type as type, size, location, is_starred, query.created_at").
+		Select("directory_hash, file_hash, file_name as name, file_type as type, size, location, is_starred, query.created_at, query.deleted_at").
 		Table("(?) as query", fileSubQuery).
 		Joins("left join files on query.file_hash = files.hash").Session(&gorm.Session{})
 	if len(sort) != 0 && len(order) != 0 {
@@ -342,4 +343,8 @@ func StarFile(dirHash string, fileHash string) error {
 func UnstarFile(dirHash string, fileHash string) error {
 	return db.Model(&DirectoryFile{}).Where("directory_hash = ? and file_hash = ?", dirHash, fileHash).
 		Update("is_starred", false).Error
+}
+
+func GetDeletedFiles() {
+
 }
