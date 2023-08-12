@@ -40,7 +40,7 @@ type DirectoryFile struct {
 	DeletedAt     gorm.DeletedAt `gorm:"index"`
 }
 
-type FileInfo struct {
+type UserFileInfo struct {
 	DirectoryHash string
 	FileHash      string
 	Name          string
@@ -49,7 +49,7 @@ type FileInfo struct {
 	IsStarred     bool
 	Location      string
 	CreatedAt     time.Time
-	DeletedAt     time.Time
+	DeletedAt     gorm.DeletedAt
 }
 
 var RefCountError = errors.New("reference count of the file is already 0")
@@ -133,8 +133,8 @@ func StoreFileMetadata(fileRequest *request.FileRequest, fileStoragePath string,
 
 // GetFilesMetadata returns the list of file metadata and subdirectory metadata.
 // Note that directory hash is generated using uuid, so we treat it unique.
-func GetFilesMetadata(dirHash string, isStarred bool, sort string, order string) ([]FileInfo, []Directory, error) {
-	var filesInfo []FileInfo
+func GetFilesMetadata(dirHash string, isStarred bool, sort string, order string) ([]UserFileInfo, []Directory, error) {
+	var filesInfo []UserFileInfo
 	var dirs []Directory
 	var parentDir Directory
 
@@ -154,7 +154,7 @@ func GetFilesMetadata(dirHash string, isStarred bool, sort string, order string)
 	}
 
 	//left join tables `directory_files` and `files` to get files info
-	fileSubQuery := db.Select("directory_hash, file_hash, file_name, created_at, deleted_at, is_starred").Table("directory_files").
+	fileSubQuery := db.Select("*").Table("directory_files").
 		Where("directory_hash = ?", dirHash).Session(&gorm.Session{})
 	if isStarred {
 		fileSubQuery = fileSubQuery.Where("is_starred = ?", isStarred)
@@ -345,6 +345,19 @@ func UnstarFile(dirHash string, fileHash string) error {
 		Update("is_starred", false).Error
 }
 
-func GetDeletedFiles() {
-
+func GetTrashFiles() ([]UserFileInfo, []Directory, error) {
+	var filesInfo []UserFileInfo
+	var dirs []Directory
+	if err := db.Unscoped().Where("deleted_at is not null").Find(&dirs).Error; err != nil {
+		return nil, nil, err
+	}
+	fileSubQuery := db.Unscoped().Where("deleted_at is not null").Select("*").Table("directory_files")
+	fileQuery := db.Debug().Unscoped().
+		Select("directory_hash, file_hash, file_name as name, file_type as type, size, location, is_starred, query.created_at, query.deleted_at").
+		Table("(?) as query", fileSubQuery).
+		Joins("left join files on query.file_hash = files.hash")
+	if err := fileQuery.Find(&filesInfo).Error; err != nil {
+		return nil, nil, err
+	}
+	return filesInfo, dirs, nil
 }

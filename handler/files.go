@@ -47,6 +47,8 @@ func RegisterFilesRoutes(router *gin.Engine) {
 	group.POST("chunks", uploadFileChunk)
 	group.POST("chunks/:fileHash", mergeFileChunks)
 	group.GET("chunks/:fileHash", getMissedChunks)
+
+	group.GET("trash", getTrashFiles)
 }
 
 func createDir(c *gin.Context) {
@@ -136,31 +138,8 @@ func getFilesMetadata(c *gin.Context) {
 		return
 	}
 	// construct files in response
-	fileResponses := []response.FileResponse{}
-	for _, dir := range dirs {
-		fileResponses = append(fileResponses, response.FileResponse{
-			DirectoryHash: dirHash,
-			FileHash:      dir.Hash,
-			Name:          dir.Name,
-			Type:          "dir",
-			Size:          0,
-			IsStarred:     dir.IsStarred,
-			CreatedAt:     dir.CreatedAt,
-		})
-	}
-	for _, file := range files {
-		fileResponses = append(fileResponses, response.FileResponse{
-			DirectoryHash: dirHash,
-			FileHash:      file.FileHash,
-			Name:          file.Name,
-			Type:          file.Type,
-			Size:          file.Size,
-			IsStarred:     file.IsStarred,
-			CreatedAt:     file.CreatedAt,
-		})
-	}
+	fileResponses := response.Convert2FileResponse(files, dirs)
 	c.JSON(200, fileResponses)
-	return
 }
 
 // download the whole directory and return zipped result
@@ -632,4 +611,14 @@ func unstarFile(c *gin.Context) {
 		return
 	}
 	c.Writer.WriteHeader(204)
+}
+
+func getTrashFiles(c *gin.Context) {
+	files, dirs, err := model.GetTrashFiles()
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to get trash files", "description": err.Error()})
+		return
+	}
+	fileResponses := response.Convert2FileResponse(files, dirs)
+	c.JSON(200, fileResponses)
 }
