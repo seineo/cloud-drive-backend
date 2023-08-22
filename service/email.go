@@ -34,7 +34,7 @@ type EmailButton struct {
 func sendEmail(emails []string, subject string, body string) error {
 	m := gomail.NewMessage()
 	for _, email := range emails {
-		m.SetHeader("From", emailConfig.FromEmailUser)
+		m.SetHeader("From", emailConfig.User)
 		m.SetHeader("To", email)
 		m.SetHeader("Subject", subject)
 		m.SetBody("text/html", body)

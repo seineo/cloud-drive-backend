@@ -16,7 +16,7 @@ func init() {
 	configs = config.LoadConfig("./config")
 	emailConfig = configs.Email
 	d := gomail.NewDialer(emailConfig.SMTPHost, emailConfig.SMTPPort,
-		emailConfig.FromEmailUser, emailConfig.FromEmailPsw)
+		emailConfig.User, emailConfig.Password)
 	var err error
 	emailSender, err = d.Dial()
 	if err != nil {

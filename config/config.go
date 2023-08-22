@@ -12,10 +12,10 @@ type ProjectConfig struct {
 }
 
 type EmailConfig struct {
-	SMTPHost      string `yaml:"smtpHost"`
-	SMTPPort      int    `yaml:"smtpPort"`
-	FromEmailUser string `yaml:"user"`
-	FromEmailPsw  string `yaml:"password"`
+	SMTPHost string `yaml:"smtpHost"`
+	SMTPPort int    `yaml:"smtpPort"`
+	User     string `yaml:"user"`
+	Password string `yaml:"password"`
 }
 
 type FileConfig struct {
