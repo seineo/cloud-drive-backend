@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"CloudDrive/config"
 	"CloudDrive/service"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -34,7 +33,7 @@ func sendEmail(c *gin.Context) {
 		}
 		// store authentication code using pattern like emailID:code
 		emailID := service.SHA256Hash(emailForm.Email, time.Now().String())
-		err = rdb.Set(ctx, emailID, code, config.GetConfig().AuthCodeExpiredTime).Err()
+		err = rdb.Set(ctx, emailID, code, configs.File.StaleTime).Err()
 		if err != nil {
 			c.JSON(500, gin.H{"message": "failed to store authentication code", "description": err.Error()})
 			return

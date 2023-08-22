@@ -1,7 +1,6 @@
 package service
 
 import (
-	"CloudDrive/config"
 	"bytes"
 	"fmt"
 	"github.com/sirupsen/logrus"
@@ -35,7 +34,7 @@ type EmailButton struct {
 func sendEmail(emails []string, subject string, body string) error {
 	m := gomail.NewMessage()
 	for _, email := range emails {
-		m.SetHeader("From", emailConfig.FromEmail)
+		m.SetHeader("From", emailConfig.FromEmailUser)
 		m.SetHeader("To", email)
 		m.SetHeader("Subject", subject)
 		m.SetBody("text/html", body)
@@ -53,7 +52,7 @@ func sendEmail(emails []string, subject string, body string) error {
 
 // SendCodeEmail sends verification code to registering users
 func SendCodeEmail(email string) (string, error) {
-	subject := fmt.Sprintf("%s-邮件认证", config.GetConfig().ProjectName)
+	subject := fmt.Sprintf("%s-邮件认证", configs.Project.Name)
 	code := GenerateCode(6) // 6-digit verification code
 	log.WithFields(logrus.Fields{
 		"code": code,
@@ -71,8 +70,8 @@ func SendCodeEmail(email string) (string, error) {
 	// load data and execute template
 	emailContent := CodeEmailContent{
 		Code:        code,
-		ProjectName: config.GetConfig().ProjectName,
-		ProjectURL:  config.GetConfig().ProjectURL,
+		ProjectName: configs.Project.Name,
+		ProjectURL:  configs.Project.URL,
 	}
 	buf := &bytes.Buffer{}
 	err = tmpl.Execute(buf, emailContent)
@@ -92,7 +91,7 @@ func SendCodeEmail(email string) (string, error) {
 
 // SendShareEmails send share email to given target, load from local template and write with user-given body
 func SendShareEmails(ownerName string, ownerEmail string, email string, userBody string, fileNames []string, shareLinks []string) error {
-	subject := fmt.Sprintf("%s-文件共享", config.GetConfig().ProjectName)
+	subject := fmt.Sprintf("%s-文件共享", configs.Project.Name)
 	// load template
 	_, filename, _, ok := runtime.Caller(0)
 	if !ok {
@@ -115,8 +114,8 @@ func SendShareEmails(ownerName string, ownerEmail string, email string, userBody
 		OwnerEmail:  ownerEmail,
 		UserBody:    userBody,
 		Buttons:     buttons,
-		ProjectName: config.GetConfig().ProjectName,
-		ProjectURL:  config.GetConfig().ProjectURL,
+		ProjectName: configs.Project.Name,
+		ProjectURL:  configs.Project.URL,
 	}
 	buf := &bytes.Buffer{}
 	err = tmpl.Execute(buf, emailContent)

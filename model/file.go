@@ -1,7 +1,6 @@
 package model
 
 import (
-	config2 "CloudDrive/config"
 	"CloudDrive/request"
 	"errors"
 	"fmt"
@@ -235,9 +234,8 @@ func DeleteFile(dirHash string, fileHash string) error {
 
 // DeleteStaleFiles regularly checks and deletes stale files.
 func DeleteStaleFiles() {
-	config := config2.GetConfig()
 	//configs.Storage.DiskStoragePath
-	staleTime := time.Now().Add(-config.FileStaleTime)
+	staleTime := time.Now().Add(-configs.File.StaleTime)
 	var files []File
 	if err := db.Unscoped().Where("deleted_at <= ?", staleTime).Find(&files).Error; err != nil {
 		log.Errorf("failed to find stale files, error: %v\n", err.Error())

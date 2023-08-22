@@ -21,11 +21,12 @@ var sessionInfo *SessionInfo
 var log *logrus.Logger
 var ctx = context.Background()
 var rdb *redis.Client
-var configs = config.GetConfig()
+var configs config.Config
 
 func init() {
-	log = config.GetConfig().Log
-	redisConfig := config.GetConfig().Storage.Redis
+	log = config.GetLogger()
+	configs = config.LoadConfig("./config")
+	redisConfig := configs.Redis
 	// specific where session stores and the key for authentication
 	store, err := sessionRedis.NewStore(redisConfig.IdleConnection, redisConfig.Network,
 		redisConfig.Addr, redisConfig.Password, []byte(redisConfig.AuthKey))

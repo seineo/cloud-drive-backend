@@ -13,14 +13,14 @@ import (
 var log *logrus.Logger
 
 func init() {
-	_config := config.GetConfig()
-	log = _config.Log
+	log = config.GetLogger()
+	configs := config.LoadConfig("./config")
 	// create file storage directories if they don't exist
-	err := os.MkdirAll(_config.Storage.DiskStoragePath, 0750)
+	err := os.MkdirAll(configs.Local.StoragePath, 0750)
 	if err != nil {
 		log.Fatal("failed to create file storage directory")
 	}
-	err = os.MkdirAll(_config.Storage.DiskTempStoragePath, 0750)
+	err = os.MkdirAll(configs.Local.TempStoragePath, 0750)
 	if err != nil {
 		log.Fatal("failed to create temporal file storage directory")
 	}

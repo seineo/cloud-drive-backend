@@ -7,12 +7,14 @@ import (
 )
 
 var log *logrus.Logger
-var emailConfig *config.EmailConfig
+var configs config.Config
+var emailConfig config.EmailConfig
 var emailSender gomail.SendCloser
 
 func init() {
-	log = config.GetConfig().Log
-	emailConfig = config.GetConfig().Email
+	log = config.GetLogger()
+	configs = config.LoadConfig("./config")
+	emailConfig = configs.Email
 	d := gomail.NewDialer(emailConfig.SMTPHost, emailConfig.SMTPPort,
 		emailConfig.FromEmailUser, emailConfig.FromEmailPsw)
 	var err error

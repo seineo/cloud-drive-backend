@@ -19,10 +19,11 @@ import (
 	"sync"
 )
 
-var FileStoragePath = configs.Storage.DiskStoragePath
-var TempFileStoragePath = configs.Storage.DiskTempStoragePath
-var MaxUploadSize = configs.MaxUploadSize
-var ArchiveThreshold = configs.ArchiveThreshold
+var FileStoragePath = configs.Local.StoragePath
+var TempFileStoragePath = configs.Local.TempStoragePath
+
+//var MaxUploadSize = configs.MaxUploadSize
+//var ArchiveThreshold = configs.ArchiveThreshold
 
 var chunkMutex sync.Mutex // write currentChunks in redis
 
@@ -87,11 +88,11 @@ func uploadFile(c *gin.Context) {
 		c.JSON(400, gin.H{"message": "failed to upload file", "description": err.Error()})
 		return
 	}
-	// check file size
-	if fileInfo.FileSize > MaxUploadSize {
-		c.JSON(400, gin.H{"message": fmt.Sprintf("Uploaded file %s is too big", file.Filename)})
-		return
-	}
+	//// check file size
+	//if fileInfo.FileSize > MaxUploadSize {
+	//	c.JSON(400, gin.H{"message": fmt.Sprintf("Uploaded file %s is too big", file.Filename)})
+	//	return
+	//}
 	// store file content if not exists
 	fileStoragePath := filepath.Join(FileStoragePath, fileInfo.FileHash)
 	exists, err := model.FileExists(fileInfo.FileHash)
@@ -196,57 +197,56 @@ func downloadFile(c *gin.Context) {
 	}
 	// if size exceeds the threshold, we zip file and name the zipped file by file name.
 	// Not for image, video and audio files since they have been archived to some extent
-	isArchived := false
-	log.Debug("file size: ", fileInfo.Size)
-	log.Debug("threshold: ", ArchiveThreshold)
-	if fileInfo.Size > ArchiveThreshold &&
-		!strings.HasPrefix(fileInfo.FileType, "image") && !strings.HasPrefix(fileInfo.FileType, "audio") &&
-		!strings.HasPrefix(fileInfo.FileType, "video") {
-		isArchived = true
-		err = service.ArchiveFile(fileInfo.Location, fileName, filepath.Join(TempFileStoragePath, fileInfo.Hash))
-		if err != nil {
-			c.JSON(500, gin.H{"message": "failed to archive file", "description": err.Error()})
-			return
-		}
-		log.WithFields(logrus.Fields{
-			"fileHash":   fileInfo.Hash,
-			"fileName":   fileName,
-			"zippedPath": filepath.Join(TempFileStoragePath, fileInfo.Hash),
-		}).Info("file archived")
-	}
+	//isArchived := false
+	//log.Debug("file size: ", fileInfo.Size)
+	//if fileInfo.Size > ArchiveThreshold &&
+	//	!strings.HasPrefix(fileInfo.FileType, "image") && !strings.HasPrefix(fileInfo.FileType, "audio") &&
+	//	!strings.HasPrefix(fileInfo.FileType, "video") {
+	//	isArchived = true
+	//	err = service.ArchiveFile(fileInfo.Location, fileName, filepath.Join(TempFileStoragePath, fileInfo.Hash))
+	//	if err != nil {
+	//		c.JSON(500, gin.H{"message": "failed to archive file", "description": err.Error()})
+	//		return
+	//	}
+	//	log.WithFields(logrus.Fields{
+	//		"fileHash":   fileInfo.Hash,
+	//		"fileName":   fileName,
+	//		"zippedPath": filepath.Join(TempFileStoragePath, fileInfo.Hash),
+	//	}).Info("file archived")
+	//}
 	// write response header
 	c.Header("Content-Type", "application/octet-stream") // binary stream
 	// return the file
-	if isArchived {
-		file, err := os.Open(filepath.Join(TempFileStoragePath, fileInfo.Hash))
-		if err != nil {
-			c.JSON(500, gin.H{"message": "failed to open file", "description": err.Error()})
-			return
-		}
-		defer func() { // delete the temporal zipped file
-			err := os.Remove(filepath.Join(TempFileStoragePath, fileInfo.Hash))
-			if err != nil {
-				log.WithFields(logrus.Fields{
-					"filePath": filepath.Join(TempFileStoragePath, fileInfo.Hash),
-				}).Error("failed to remove temporal zipped file")
-			}
-		}()
-		// download zip file and name it with extension `zip`
-		zipName := strings.Split(fileName, ".")[0] + ".zip"
-		log.Debug("zipName: ", zipName)
-		c.Header("Content-Disposition", "attachment; filename="+zipName)
-		c.Header("Content-Encoding", "zip")
-		io.Copy(c.Writer, file)
-	} else {
-		file, err := os.Open(fileInfo.Location)
-		if err != nil {
-			c.JSON(500, gin.H{"message": "failed to open file", "description": err.Error()})
-			return
-		}
-		defer file.Close()
-		c.Header("Content-Disposition", "attachment; filename="+fileName)
-		io.Copy(c.Writer, file)
+	//if isArchived {
+	//	file, err := os.Open(filepath.Join(TempFileStoragePath, fileInfo.Hash))
+	//	if err != nil {
+	//		c.JSON(500, gin.H{"message": "failed to open file", "description": err.Error()})
+	//		return
+	//	}
+	//	defer func() { // delete the temporal zipped file
+	//		err := os.Remove(filepath.Join(TempFileStoragePath, fileInfo.Hash))
+	//		if err != nil {
+	//			log.WithFields(logrus.Fields{
+	//				"filePath": filepath.Join(TempFileStoragePath, fileInfo.Hash),
+	//			}).Error("failed to remove temporal zipped file")
+	//		}
+	//	}()
+	//	// download zip file and name it with extension `zip`
+	//	zipName := strings.Split(fileName, ".")[0] + ".zip"
+	//	log.Debug("zipName: ", zipName)
+	//	c.Header("Content-Disposition", "attachment; filename="+zipName)
+	//	c.Header("Content-Encoding", "zip")
+	//	io.Copy(c.Writer, file)
+	//} else {
+	file, err := os.Open(fileInfo.Location)
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to open file", "description": err.Error()})
+		return
 	}
+	defer file.Close()
+	c.Header("Content-Disposition", "attachment; filename="+fileName)
+	io.Copy(c.Writer, file)
+	//}
 }
 
 func deleteDir(c *gin.Context) {

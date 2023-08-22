@@ -8,5 +8,5 @@ import (
 var log *logrus.Logger
 
 func init() {
-	log = config.GetConfig().Log
+	log = config.GetLogger()
 }
