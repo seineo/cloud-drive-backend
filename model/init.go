@@ -15,7 +15,7 @@ var configs config.Config
 func init() {
 	log = config.GetLogger()
 	// mysql
-	configs = config.LoadConfig("./config")
+	configs = config.LoadConfig("../config")
 	mysqlConfig := configs.Database
 	dsn := fmt.Sprintf("%s:%s@%s(%s)/%s?parseTime=true",
 		mysqlConfig.User, mysqlConfig.Password, mysqlConfig.Protocol, mysqlConfig.Address, mysqlConfig.Database)
