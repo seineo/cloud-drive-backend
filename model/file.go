@@ -27,7 +27,7 @@ type Directory struct {
 	DeletedAt  gorm.DeletedAt `gorm:"index"`
 	ParentHash *string        `gorm:"size:255"`
 	SubDirs    []Directory    `gorm:"foreignKey:ParentHash;"`                                 // cascade deletion will only delete one-level subdirectories
-	Files      []File         `gorm:"many2many:directory_files;constraint:OnDelete:CASCADE;"` // delete all user files after deleting real files
+	Files      []File         `gorm:"many2many:directory_files;constraint:OnDelete:CASCADE;"` // delete related user files after deleting real files or directories
 }
 
 type DirectoryFile struct {
@@ -247,18 +247,18 @@ func DeleteStaleFiles() {
 	}
 }
 
-// GetAllUnderDir returns all unique files and subdirectories under given directory.
+// GetAllUnderDir returns all unique files and subdirectories under given directory (also for trash).
 func GetAllUnderDir(dirHash string) ([]Directory, []DirectoryFile, error) {
 	var files []DirectoryFile
 	var dirs []Directory
 	var parentDir Directory
-	if err := db.Where("hash = ?", dirHash).First(&parentDir).Error; err != nil {
+	if err := db.Unscoped().Where("hash = ?", dirHash).First(&parentDir).Error; err != nil {
 		return nil, nil, err
 	}
-	if err := db.Model(&parentDir).Association("SubDirs").Find(&dirs); err != nil {
+	if err := db.Unscoped().Model(&parentDir).Association("SubDirs").Find(&dirs); err != nil {
 		return nil, nil, err
 	}
-	if err := db.Where("directory_hash = ?", dirHash).Find(&files).Error; err != nil {
+	if err := db.Unscoped().Where("directory_hash = ?", dirHash).Find(&files).Error; err != nil {
 		return nil, nil, err
 	}
 	for _, dir := range dirs {
@@ -360,4 +360,51 @@ func GetTrashFiles(userID uint) ([]UserFileInfo, []Directory, error) {
 		return nil, nil, err
 	}
 	return filesInfo, dirs, nil
+}
+
+func DeleteTrashFile(dirHash string, fileHash string) error {
+	return db.Unscoped().Where("directory_hash = ? and file_hash = ? and deleted_at is not null",
+		dirHash, fileHash).Delete(&DirectoryFile{}).Error
+}
+
+func DeleteTrashDir(dirHash string) error {
+	dirs, files, err := GetAllUnderDir(dirHash)
+	if err != nil {
+		return err
+	}
+	err = db.Transaction(func(tx *gorm.DB) error {
+		for _, file := range files {
+			if err := DeleteTrashFile(file.DirectoryHash, file.FileHash); err != nil {
+				return err
+			}
+		}
+		if len(dirs) != 0 {
+			if err := tx.Unscoped().Delete(&dirs).Error; err != nil {
+				return err
+			}
+		}
+		if err := tx.Unscoped().Delete(&Directory{Hash: dirHash}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	return err
+}
+
+func ClearTrashFiles(userID uint) error {
+	filesInfo, dirs, err := GetTrashFiles(userID)
+	if err != nil {
+		return err
+	}
+	for _, file := range filesInfo {
+		if err = DeleteTrashFile(file.DirectoryHash, file.FileHash); err != nil {
+			return err
+		}
+	}
+	for _, dir := range dirs {
+		if err = DeleteTrashDir(dir.Hash); err != nil {
+			return err
+		}
+	}
+	return nil
 }

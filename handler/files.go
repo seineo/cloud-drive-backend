@@ -50,6 +50,9 @@ func RegisterFilesRoutes(router *gin.Engine) {
 	group.GET("chunks/:fileHash", getMissedChunks)
 
 	group.GET("trash", getTrashFiles)
+	group.DELETE("trash/:dirHash/:fileHash", deleteTrashFile)
+	group.DELETE("trash/:dirHash", deleteTrashDir)
+	group.DELETE("trash", clearTrashFiles)
 }
 
 func createDir(c *gin.Context) {
@@ -625,4 +628,33 @@ func getTrashFiles(c *gin.Context) {
 	}
 	fileResponses := response.Convert2FileResponse(files, dirs)
 	c.JSON(200, fileResponses)
+}
+
+func deleteTrashFile(c *gin.Context) {
+	dirHash := c.Param("dirHash")
+	fileHash := c.Param("fileHash")
+	if err := model.DeleteTrashFile(dirHash, fileHash); err != nil {
+		c.JSON(500, gin.H{"message": "failed to delete trash file", "description": err.Error()})
+		return
+	}
+	c.Writer.WriteHeader(204)
+}
+
+func deleteTrashDir(c *gin.Context) {
+	dirHash := c.Param("dirHash")
+	if err := model.DeleteTrashDir(dirHash); err != nil {
+		c.JSON(500, gin.H{"message": "failed to delete trash directory", "description": err.Error()})
+		return
+	}
+	c.Writer.WriteHeader(204)
+}
+
+func clearTrashFiles(c *gin.Context) {
+	session := sessions.Default(c)
+	userID := session.Get("userID")
+	if err := model.ClearTrashFiles(userID.(uint)); err != nil {
+		c.JSON(500, gin.H{"message": "failed to clear trash files", "description": err.Error()})
+		return
+	}
+	c.Writer.WriteHeader(204)
 }
