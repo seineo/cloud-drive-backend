@@ -34,6 +34,7 @@ type DirectoryFile struct {
 	DirectoryHash string
 	FileHash      string
 	FileName      string
+	UserID        uint
 	IsStarred     bool // false -> don't filter, true -> filter
 	CreatedAt     time.Time
 	DeletedAt     gorm.DeletedAt `gorm:"index"`
@@ -86,11 +87,12 @@ func StoreDirMetadata(directoryRequest *request.DirectoryRequest, userID uint) e
 // If file exists, insert file metadata into table `directory_files` and update reference count in table `files`,
 // otherwise insert into two tables: `file`s and `directory_files` using transaction.
 // Ref link: https://stackoverflow.com/questions/65012939/custom-fields-in-many2many-jointable
-func StoreFileMetadata(fileRequest *request.FileRequest, fileStoragePath string, exists bool) error {
+func StoreFileMetadata(fileRequest *request.FileRequest, fileStoragePath string, exists bool, userID uint) error {
 	directoryFile := DirectoryFile{
 		DirectoryHash: fileRequest.DirHash,
 		FileHash:      fileRequest.FileHash,
 		FileName:      fileRequest.FileName,
+		UserID:        userID,
 	}
 	if exists {
 		err := db.Transaction(func(tx *gorm.DB) error {
@@ -343,13 +345,13 @@ func UnstarFile(dirHash string, fileHash string) error {
 		Update("is_starred", false).Error
 }
 
-func GetTrashFiles() ([]UserFileInfo, []Directory, error) {
+func GetTrashFiles(userID uint) ([]UserFileInfo, []Directory, error) {
 	var filesInfo []UserFileInfo
 	var dirs []Directory
-	if err := db.Unscoped().Where("deleted_at is not null").Find(&dirs).Error; err != nil {
+	if err := db.Unscoped().Where(" user_id = ? and deleted_at is not null", userID).Find(&dirs).Error; err != nil {
 		return nil, nil, err
 	}
-	fileSubQuery := db.Unscoped().Where("deleted_at is not null").Select("*").Table("directory_files")
+	fileSubQuery := db.Unscoped().Where("user_id = ? and deleted_at is not null", userID).Select("*").Table("directory_files")
 	fileQuery := db.Debug().Unscoped().
 		Select("directory_hash, file_hash, file_name as name, file_type as type, size, location, is_starred, query.created_at, query.deleted_at").
 		Table("(?) as query", fileSubQuery).

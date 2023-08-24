@@ -106,8 +106,10 @@ func uploadFile(c *gin.Context) {
 			return
 		}
 	}
+	session := sessions.Default(c)
+	userID := session.Get("userID")
 	// store file metadata to database regardless of file existence
-	err = model.StoreFileMetadata(&fileInfo, fileStoragePath, exists)
+	err = model.StoreFileMetadata(&fileInfo, fileStoragePath, exists, userID.(uint))
 	if err != nil {
 		c.JSON(500, gin.H{"message": "failed to store file metadata", "description": err.Error()})
 		return
@@ -533,7 +535,7 @@ func mergeFileChunks(c *gin.Context) {
 	// store file info in mysql
 	session := sessions.Default(c)
 	userID := session.Get("userID")
-	err = model.StoreFileMetadata(&merge, targetPath, false)
+	err = model.StoreFileMetadata(&merge, targetPath, false, userID.(uint))
 	if err != nil {
 		c.JSON(500, gin.H{"message": "failed to store merged file info", "description": err.Error()})
 		return
@@ -614,7 +616,9 @@ func unstarFile(c *gin.Context) {
 }
 
 func getTrashFiles(c *gin.Context) {
-	files, dirs, err := model.GetTrashFiles()
+	session := sessions.Default(c)
+	userID := session.Get("userID")
+	files, dirs, err := model.GetTrashFiles(userID.(uint))
 	if err != nil {
 		c.JSON(500, gin.H{"message": "failed to get trash files", "description": err.Error()})
 		return
