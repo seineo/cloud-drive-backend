@@ -54,8 +54,10 @@ type Config struct {
 	Database DatabaseConfig `yaml:"database"`
 }
 
-func LoadConfig(path string) Config {
-	viper.AddConfigPath(path)
+func LoadConfig(paths []string) Config {
+	for _, path := range paths {
+		viper.AddConfigPath(path)
+	}
 	viper.SetConfigName("app")
 	viper.SetConfigType("yaml")
 

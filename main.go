@@ -14,7 +14,7 @@ var log *logrus.Logger
 
 func init() {
 	log = config.GetLogger()
-	configs := config.LoadConfig("config")
+	configs := config.LoadConfig([]string{"config"})
 	// create file storage directories if they don't exist
 	err := os.MkdirAll(configs.Local.StoragePath, 0750)
 	if err != nil {

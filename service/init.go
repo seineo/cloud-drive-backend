@@ -13,7 +13,8 @@ var emailSender gomail.SendCloser
 
 func init() {
 	log = config.GetLogger()
-	configs = config.LoadConfig("../config")
+	log.Info("service calls config")
+	configs = config.LoadConfig([]string{"config", "../config"})
 	emailConfig = configs.Email
 	d := gomail.NewDialer(emailConfig.SMTPHost, emailConfig.SMTPPort,
 		emailConfig.User, emailConfig.Password)

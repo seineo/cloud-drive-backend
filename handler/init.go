@@ -25,7 +25,8 @@ var configs config.Config
 
 func init() {
 	log = config.GetLogger()
-	configs = config.LoadConfig("../config")
+	log.Info("handler calls config")
+	configs = config.LoadConfig([]string{"config", "../config"})
 	redisConfig := configs.Redis
 	// specific where session stores and the key for authentication
 	store, err := sessionRedis.NewStore(redisConfig.IdleConnection, redisConfig.Network,
