@@ -53,6 +53,8 @@ func RegisterFilesRoutes(router *gin.Engine) {
 	group.DELETE("trash/:dirHash/:fileHash", deleteTrashFile)
 	group.DELETE("trash/:dirHash", deleteTrashDir)
 	group.DELETE("trash", clearTrashFiles)
+	group.PUT("trash/:dirHash/:fileHash", restoreTrashFile)
+	group.PUT("trash/:dirHash", restoreTrashDir)
 }
 
 func createDir(c *gin.Context) {
@@ -657,4 +659,23 @@ func clearTrashFiles(c *gin.Context) {
 		return
 	}
 	c.Writer.WriteHeader(204)
+}
+
+func restoreTrashFile(c *gin.Context) {
+	dirHash := c.Param("dirHash")
+	fileHash := c.Param("fileHash")
+	if err := model.RestoreTrashFile(dirHash, fileHash); err != nil {
+		c.JSON(500, gin.H{"message": "failed to restore trash file", "description": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"dirHash": dirHash, "fileHash": fileHash})
+}
+
+func restoreTrashDir(c *gin.Context) {
+	dirHash := c.Param("dirHash")
+	if err := model.RestoreTrashDir(dirHash); err != nil {
+		c.JSON(500, gin.H{"message": "failed to restore trash directory", "description": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"dirHash": dirHash})
 }
