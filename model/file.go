@@ -369,6 +369,23 @@ func UnstarFile(dirHash string, fileHash string) error {
 		Update("is_starred", false).Error
 }
 
+func GetStarredFiles(userID uint) ([]UserFileInfo, []Directory, error) {
+	var files []UserFileInfo
+	var dirs []Directory
+	if err := db.Where("user_id = ? and is_starred = 1", userID).Find(&dirs).Error; err != nil {
+		return nil, nil, err
+	}
+	fileSubQuery := db.Select("*").Table("directory_files").Where("user_id = ? and is_starred = 1", userID)
+	fileQuery := db.Debug().
+		Select("directory_hash, file_hash, file_name as name, file_type as type, size, location, is_starred, query.created_at, query.deleted_at").
+		Table("(?) as query", fileSubQuery).
+		Joins("left join files on query.file_hash = files.hash")
+	if err := fileQuery.Find(&files).Error; err != nil {
+		return nil, nil, err
+	}
+	return files, dirs, nil
+}
+
 func TraceTrashAncestorDir(dirHash string) (string, error) {
 	var curDir Directory
 	var parentDir Directory

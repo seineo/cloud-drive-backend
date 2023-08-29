@@ -36,6 +36,7 @@ func RegisterFilesRoutes(router *gin.Engine) {
 	group.GET("metadata/dir/:dirHash", getFilesMetadata)
 	group.GET("metadata/file/:fileHash", fileExists)
 
+	group.GET("metadata/star", getStarredFiles)
 	group.PUT("metadata/dir/:dirHash/star", starDir)
 	group.DELETE("metadata/dir/:dirHash/star", unstarDir)
 	group.PUT("metadata/file/:dirHash/:fileHash/star", starFile)
@@ -616,6 +617,18 @@ func unstarFile(c *gin.Context) {
 		return
 	}
 	c.Writer.WriteHeader(204)
+}
+
+func getStarredFiles(c *gin.Context) {
+	session := sessions.Default(c)
+	userID := session.Get("userID")
+	files, dirs, err := model.GetStarredFiles(userID.(uint))
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to get starred files", "description": err.Error()})
+		return
+	}
+	fileResponses := response.Convert2FileResponse(files, dirs)
+	c.JSON(200, fileResponses)
 }
 
 func getTrashFiles(c *gin.Context) {
