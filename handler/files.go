@@ -19,9 +19,6 @@ import (
 	"sync"
 )
 
-var FileStoragePath = configs.Local.StoragePath
-var TempFileStoragePath = configs.Local.TempStoragePath
-
 //var MaxUploadSize = configs.MaxUploadSize
 //var ArchiveThreshold = configs.ArchiveThreshold
 
@@ -53,8 +50,8 @@ func RegisterFilesRoutes(router *gin.Engine) {
 	group.DELETE("trash/:dirHash/:fileHash", deleteTrashFile)
 	group.DELETE("trash/:dirHash", deleteTrashDir)
 	group.DELETE("trash", clearTrashFiles)
-	group.PUT("trash/:dirHash/:fileHash", restoreTrashFile)
-	group.PUT("trash/:dirHash", restoreTrashDir)
+	group.POST("/:dirHash/:fileHash/untrash", restoreTrashFile)
+	group.POST("/:dirHash/untrash", restoreTrashDir)
 }
 
 func createDir(c *gin.Context) {
@@ -99,7 +96,7 @@ func uploadFile(c *gin.Context) {
 	//	return
 	//}
 	// store file content if not exists
-	fileStoragePath := filepath.Join(FileStoragePath, fileInfo.FileHash)
+	fileStoragePath := filepath.Join(configs.Local.StoragePath, fileInfo.FileHash)
 	exists, err := model.FileExists(fileInfo.FileHash)
 	if err != nil {
 		c.JSON(500, gin.H{"message": "failed to check whether file exists", "description": err.Error()})
@@ -154,7 +151,8 @@ func getFilesMetadata(c *gin.Context) {
 func downloadDir(c *gin.Context) {
 	dirHash := c.Param("dirHash")
 	path := c.Query("path")
-	err := service.ArchiveDir(path, dirHash, filepath.Join(TempFileStoragePath, dirHash))
+	tempFileStoragePath := configs.Local.TempStoragePath
+	err := service.ArchiveDir(path, dirHash, filepath.Join(tempFileStoragePath, dirHash))
 	if err != nil {
 		c.JSON(500, gin.H{"message": "failed to archive directory", "description": err.Error()})
 		return
@@ -162,18 +160,18 @@ func downloadDir(c *gin.Context) {
 	log.WithFields(logrus.Fields{
 		"hash":       dirHash,
 		"path":       path,
-		"zippedPath": filepath.Join(TempFileStoragePath, dirHash),
+		"zippedPath": filepath.Join(tempFileStoragePath, dirHash),
 	}).Info("directory archived")
-	file, err := os.Open(filepath.Join(TempFileStoragePath, dirHash))
+	file, err := os.Open(filepath.Join(tempFileStoragePath, dirHash))
 	if err != nil {
 		c.JSON(500, gin.H{"message": "failed to open file", "description": err.Error()})
 		return
 	}
 	defer func() { // delete the temporal zipped file
-		err := os.Remove(filepath.Join(TempFileStoragePath, dirHash))
+		err := os.Remove(filepath.Join(tempFileStoragePath, dirHash))
 		if err != nil {
 			log.WithFields(logrus.Fields{
-				"filePath": filepath.Join(TempFileStoragePath, dirHash),
+				"filePath": filepath.Join(tempFileStoragePath, dirHash),
 			}).Error("failed to remove temporal zipped file")
 		}
 	}()
@@ -409,7 +407,7 @@ func uploadFileChunk(c *gin.Context) {
 		c.JSON(400, gin.H{"message": "failed to unmarshal file metadata", "description": err.Error()})
 		return
 	}
-	var tempFileDir = filepath.Join(TempFileStoragePath, chunkRequest.FileHash)
+	var tempFileDir = filepath.Join(configs.Local.TempStoragePath, chunkRequest.FileHash)
 	// store chunk info in redis
 	chunkMutex.Lock()
 	defer chunkMutex.Unlock()
@@ -481,12 +479,12 @@ func mergeFileChunks(c *gin.Context) {
 		return
 	}
 	// set source files and target file
-	chunkDir := filepath.Join(TempFileStoragePath, fileHash)
+	chunkDir := filepath.Join(configs.Local.TempStoragePath, fileHash)
 	if err != nil {
 		c.JSON(500, gin.H{"message": "failed to read chunk directory", "description": err.Error()})
 		return
 	}
-	targetPath := filepath.Join(FileStoragePath, fileHash)
+	targetPath := filepath.Join(configs.Local.StoragePath, fileHash)
 	targetFile, err := os.OpenFile(targetPath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		c.JSON(500, gin.H{"message": "failed to open target storage file", "description": err.Error()})

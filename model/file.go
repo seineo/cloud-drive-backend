@@ -369,22 +369,72 @@ func UnstarFile(dirHash string, fileHash string) error {
 		Update("is_starred", false).Error
 }
 
+func TraceTrashAncestorDir(dirHash string) (string, error) {
+	var curDir Directory
+	var parentDir Directory
+	if err := db.Unscoped().Where("hash = ?", dirHash).First(&curDir).Error; err != nil {
+		return "", err
+	}
+	// search parent directory until it has not been deleted
+	for true {
+		if curDir.ParentHash == nil { // root directory
+			break
+		} else {
+			if err := db.Unscoped().Where("hash = ? and deleted_at is not null", *curDir.ParentHash).
+				First(&parentDir).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					break
+				} else {
+					return "", err
+				}
+			} else {
+				curDir = parentDir
+				parentDir = Directory{}
+			}
+		}
+	}
+	return curDir.Hash, nil
+}
+
 func GetTrashFiles(userID uint) ([]UserFileInfo, []Directory, error) {
 	var filesInfo []UserFileInfo
 	var dirs []Directory
-	if err := db.Unscoped().Where(" user_id = ? and deleted_at is not null", userID).Find(&dirs).Error; err != nil {
+	dirSubQuery := db.Unscoped().Select("*").Table("directories").
+		Where(" user_id = ? and deleted_at is not null", userID)
+	dirQuery := db.Unscoped().Select("query.hash, query.user_id,  query.name,"+
+		" query.is_starred, query.created_at, query.deleted_at, query.parent_hash").
+		Where("directories.deleted_at is null").
+		Table("(?) as query", dirSubQuery).
+		Joins("left join directories on query.parent_hash = directories.hash")
+	if err := dirQuery.Find(&dirs).Error; err != nil {
 		return nil, nil, err
 	}
-	fileSubQuery := db.Unscoped().Where("user_id = ? and deleted_at is not null", userID).Select("*").Table("directory_files")
-	fileQuery := db.Debug().Unscoped().
-		Select("directory_hash, file_hash, file_name as name, file_type as type, size, location, is_starred, query.created_at, query.deleted_at").
-		Table("(?) as query", fileSubQuery).
-		Joins("left join files on query.file_hash = files.hash")
+	fileSubQuery1 := db.Unscoped().Select("*").
+		Where("user_id = ? and deleted_at is not null", userID).
+		Table("directory_files")
+	fileSubQuery2 := db.Unscoped().Select("query1.directory_hash, query1.file_hash, query1.file_name,"+
+		" query1.user_id, query1.is_starred, query1.created_at, query1.deleted_at").
+		Where("directories.deleted_at is null").
+		Table("(?) as query1", fileSubQuery1).
+		Joins("left join directories on query1.directory_hash = directories.hash")
+	fileQuery := db.Unscoped().
+		Select("directory_hash, file_hash, file_name as name, file_type as type, size, location, is_starred, query2.created_at, query2.deleted_at").
+		Table("(?) as query2", fileSubQuery2).
+		Joins("left join files on query2.file_hash = files.hash")
 	if err := fileQuery.Find(&filesInfo).Error; err != nil {
 		return nil, nil, err
 	}
 	return filesInfo, dirs, nil
 }
+
+//func GetTrashFiles(userID uint) ([]UserFileInfo, []Directory, error) {
+//	files, dirs, err := getTrashFiles(userID)
+//	trashDirs := []Directory{}
+//	ancestorMap := make(map[string]string)
+//	for _, dir := range dirs {
+//
+//	}
+//}
 
 func DeleteTrashFile(dirHash string, fileHash string) error {
 	return db.Unscoped().Where("directory_hash = ? and file_hash = ?",
