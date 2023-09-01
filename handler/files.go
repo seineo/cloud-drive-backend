@@ -4,7 +4,6 @@ import (
 	"CloudDrive/middleware"
 	"CloudDrive/model"
 	"CloudDrive/request"
-	"CloudDrive/response"
 	"CloudDrive/service"
 	"encoding/json"
 	"fmt"
@@ -34,6 +33,7 @@ func RegisterFilesRoutes(router *gin.Engine) {
 	group.DELETE("file/:dirHash/:fileHash", deleteFile)
 
 	group.GET("metadata/dir/:dirHash", getFilesMetadata)
+	group.GET("metadata/dir/:dirHash/trace", getTraceDirs)
 	group.GET("metadata/file/:fileHash", fileExists)
 
 	group.GET("metadata/star", getStarredFiles)
@@ -144,7 +144,7 @@ func getFilesMetadata(c *gin.Context) {
 		return
 	}
 	// construct files in response
-	fileResponses := response.Convert2FileResponse(files, dirs)
+	fileResponses := service.Convert2FileResponse(files, dirs)
 	c.JSON(200, fileResponses)
 }
 
@@ -627,7 +627,7 @@ func getStarredFiles(c *gin.Context) {
 		c.JSON(500, gin.H{"message": "failed to get starred files", "description": err.Error()})
 		return
 	}
-	fileResponses := response.Convert2FileResponse(files, dirs)
+	fileResponses := service.Convert2FileResponse(files, dirs)
 	c.JSON(200, fileResponses)
 }
 
@@ -639,7 +639,7 @@ func getTrashFiles(c *gin.Context) {
 		c.JSON(500, gin.H{"message": "failed to get trash files", "description": err.Error()})
 		return
 	}
-	fileResponses := response.Convert2FileResponse(files, dirs)
+	fileResponses := service.Convert2FileResponse(files, dirs)
 	c.JSON(200, fileResponses)
 }
 
@@ -689,4 +689,14 @@ func restoreTrashDir(c *gin.Context) {
 		return
 	}
 	c.JSON(200, gin.H{"dirHash": dirHash})
+}
+
+func getTraceDirs(c *gin.Context) {
+	dirHash := c.Param("dirHash")
+	dirs, err := model.TracePathDirs(dirHash)
+	if err != nil {
+		c.JSON(500, gin.H{"message": "failed to get directories in the path", "description": err.Error()})
+		return
+	}
+	c.JSON(200, dirs)
 }

@@ -2,6 +2,7 @@ package service
 
 import (
 	"CloudDrive/model"
+	"CloudDrive/response"
 	"archive/zip"
 	"github.com/robfig/cron/v3"
 	"io"
@@ -159,4 +160,33 @@ func ScheduleDeleteStaleFiles() {
 	c := cron.New()
 	c.AddFunc(configs.File.StaleTimeCron, model.DeleteStaleFiles)
 	c.Start()
+}
+
+func Convert2FileResponse(files []model.UserFileInfo, dirs []model.Directory) []response.FileResponse {
+	fileResponses := []response.FileResponse{}
+	for _, dir := range dirs {
+		fileResponses = append(fileResponses, response.FileResponse{
+			DirectoryHash: *dir.ParentHash,
+			FileHash:      dir.Hash,
+			Name:          dir.Name,
+			Type:          "dir",
+			Size:          0,
+			IsStarred:     dir.IsStarred,
+			CreatedAt:     dir.CreatedAt,
+			DeletedAt:     dir.DeletedAt,
+		})
+	}
+	for _, file := range files {
+		fileResponses = append(fileResponses, response.FileResponse{
+			DirectoryHash: file.DirectoryHash,
+			FileHash:      file.FileHash,
+			Name:          file.Name,
+			Type:          file.Type,
+			Size:          file.Size,
+			IsStarred:     file.IsStarred,
+			CreatedAt:     file.CreatedAt,
+			DeletedAt:     file.DeletedAt,
+		})
+	}
+	return fileResponses
 }

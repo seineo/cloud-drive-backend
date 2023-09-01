@@ -2,6 +2,7 @@ package model
 
 import (
 	"CloudDrive/request"
+	"CloudDrive/response"
 	"errors"
 	"fmt"
 	"gorm.io/gorm"
@@ -384,6 +385,38 @@ func GetStarredFiles(userID uint) ([]UserFileInfo, []Directory, error) {
 		return nil, nil, err
 	}
 	return files, dirs, nil
+}
+
+// TracePathDirs returns directory names and hashes in the path
+func TracePathDirs(dirHash string) ([]response.DirTraceResponse, error) {
+	dirs := []response.DirTraceResponse{}
+	dir := Directory{Hash: dirHash}
+	for {
+		if err := db.First(&dir).Error; err != nil {
+			return nil, err
+		}
+		dirs = append(dirs, response.DirTraceResponse{
+			Name: dir.Name,
+			Hash: dir.Hash,
+		})
+		if dir.ParentHash == nil {
+			break
+		} else {
+			dir = Directory{Hash: *dir.ParentHash}
+		}
+	}
+	// reverse for correct order
+	if len(dirs) == 0 {
+		return dirs, nil
+	}
+	i := 0
+	j := len(dirs) - 1
+	for i < j {
+		dirs[i], dirs[j] = dirs[j], dirs[i]
+		i++
+		j--
+	}
+	return dirs, nil
 }
 
 func TraceTrashAncestorDir(dirHash string) (string, error) {
