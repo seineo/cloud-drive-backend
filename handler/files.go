@@ -192,8 +192,9 @@ func downloadDir(c *gin.Context) {
 func downloadFile(c *gin.Context) {
 	fileHash := c.Param("fileHash")
 	fileName := c.Query("fileName")
-	if fileHash == "" || fileName == "" {
-		c.JSON(400, gin.H{"message": "fileHash and fileName cannot be empty"})
+	action := c.Query("action")
+	if fileHash == "" || fileName == "" || action == "" {
+		c.JSON(400, gin.H{"message": "fileHash, fileName and action cannot be empty"})
 		return
 	}
 	// get file metadata
@@ -221,7 +222,10 @@ func downloadFile(c *gin.Context) {
 	//	}).Info("file archived")
 	//}
 	// write response header
-	c.Header("Content-Type", "application/octet-stream") // binary stream
+	c.Header("Content-Type", fileInfo.FileType)
+	if fileInfo.FileType == "text/plain" {
+		c.Header("Content-Type", fmt.Sprintf("%s;charset=utf-8", fileInfo.FileType))
+	}
 	// return the file
 	//if isArchived {
 	//	file, err := os.Open(filepath.Join(TempFileStoragePath, fileInfo.Hash))
@@ -250,7 +254,11 @@ func downloadFile(c *gin.Context) {
 		return
 	}
 	defer file.Close()
-	c.Header("Content-Disposition", "attachment; filename="+fileName)
+	if action == "download" {
+		c.Header("Content-Disposition", "attachment; filename="+fileName)
+	} else if action == "preview" {
+		c.Header("Content-Disposition", "inline; filename="+fileName)
+	}
 	io.Copy(c.Writer, file)
 	//}
 }
