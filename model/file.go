@@ -37,6 +37,7 @@ type DirectoryFile struct {
 	FileName      string
 	UserID        uint
 	IsStarred     bool // false -> don't filter, true -> filter
+	VisitedAt     time.Time
 	CreatedAt     time.Time
 	DeletedAt     gorm.DeletedAt `gorm:"index"`
 }
@@ -49,12 +50,12 @@ type UserFileInfo struct {
 	Size          uint
 	IsStarred     bool
 	Location      string
+	VisitedAt     time.Time
 	CreatedAt     time.Time
 	DeletedAt     gorm.DeletedAt
 }
 
 var RefCountError = errors.New("reference count of the file is already 0")
-var ColumnNotExistsError = errors.New("")
 
 // StoreDirMetadata stores directory metadata and adds association with its parent directory.
 func StoreDirMetadata(directoryRequest *request.DirectoryRequest, userID uint) error {
@@ -94,6 +95,7 @@ func StoreFileMetadata(fileRequest *request.FileRequest, fileStoragePath string,
 		FileHash:      fileRequest.FileHash,
 		FileName:      fileRequest.FileName,
 		UserID:        userID,
+		VisitedAt:     time.Now(),
 	}
 	if exists {
 		err := db.Transaction(func(tx *gorm.DB) error {
@@ -588,4 +590,8 @@ func RestoreTrashDir(dirHash string) error {
 		return nil
 	})
 	return err
+}
+
+func UpdateVisitTime(dirHash string, fileHash string, visitedAt time.Time) error {
+	return db.Where("directory_hash = ? and file_hash = ?", dirHash, fileHash).Update("visited_at", visitedAt).Error
 }
