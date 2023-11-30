@@ -315,7 +315,7 @@ func deleteFile(c *gin.Context) {
 //	// get file hash
 //	var filesHash []string
 //	for i := 0; i < len(fileNames); i++ {
-//		fileMetadata, err := model.GetFileMetadata(ownerID.(uint), dirPath, fileNames[i])
+//		fileMetadata	, err := model.GetFileMetadata(ownerID.(uint), dirPath, fileNames[i])
 //		if err != nil {
 //			c.JSON(500, gin.H{"message": "failed to get file metadata", "description": err.Error()})
 //			return

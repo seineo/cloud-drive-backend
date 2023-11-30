@@ -1,10 +1,9 @@
 package entity
 
 import (
+	"CloudDrive/common/validation"
 	"errors"
 	"fmt"
-	"net/mail"
-	"regexp"
 )
 
 type Account struct {
@@ -26,10 +25,10 @@ type Factory struct {
 func (fc *FactoryConfig) validateConfig() error {
 	var err error
 	if len(fc.NicknameRegex) == 0 {
-		err = errors.Join(err, fmt.Errorf("昵称的正则表达式不应为空"))
+		err = errors.Join(err, fmt.Errorf("regex for nickname should not be empty"))
 	}
 	if len(fc.PasswordRegex) == 0 {
-		err = errors.Join(err, fmt.Errorf("密码的正则表达式不应为空"))
+		err = errors.Join(err, fmt.Errorf("regex for password should not be empty"))
 	}
 	return err
 }
@@ -43,17 +42,17 @@ func NewFactory(fc FactoryConfig) (*Factory, error) {
 
 func (f *Factory) validate(email string, nickname string, password string) error {
 	var err error
-	_, mailErr := mail.ParseAddress(email)
+	mailErr := validation.CheckEmail(email)
 	if mailErr != nil {
-		err = errors.Join(err, fmt.Errorf("email is no valid: %w", mailErr))
+		err = errors.Join(err, mailErr)
 	}
-	nicknamePattern := regexp.MustCompile(f.fc.NicknameRegex)
-	if !nicknamePattern.MatchString(nickname) {
-		err = errors.Join(err, fmt.Errorf("nickname is no valid"))
+	nicknameErr := validation.CheckRegexMatch(f.fc.NicknameRegex, nickname)
+	if nicknameErr != nil {
+		err = errors.Join(err, nicknameErr)
 	}
-	passwordPattern := regexp.MustCompile(f.fc.PasswordRegex)
-	if !passwordPattern.MatchString(password) {
-		err = errors.Join(err, fmt.Errorf("password is no valid"))
+	passwordErr := validation.CheckRegexMatch(f.fc.PasswordRegex, password)
+	if passwordErr != nil {
+		err = errors.Join(err, passwordErr)
 	}
 	return err
 }
