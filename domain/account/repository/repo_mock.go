@@ -54,7 +54,7 @@ func (mr *MockAccountRepoMockRecorder) Create(account any) *gomock.Call {
 }
 
 // Delete mocks base method.
-func (m *MockAccountRepo) Delete(accountID int) error {
+func (m *MockAccountRepo) Delete(accountID uint) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Delete", accountID)
 	ret0, _ := ret[0].(error)
@@ -68,7 +68,7 @@ func (mr *MockAccountRepoMockRecorder) Delete(accountID any) *gomock.Call {
 }
 
 // Get mocks base method.
-func (m *MockAccountRepo) Get(accountID int) (*entity.Account, error) {
+func (m *MockAccountRepo) Get(accountID uint) (*entity.Account, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", accountID)
 	ret0, _ := ret[0].(*entity.Account)

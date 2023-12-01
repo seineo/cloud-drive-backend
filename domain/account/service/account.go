@@ -9,10 +9,10 @@ import (
 
 type AccountService interface {
 	NewAccount(email string, nickname string, password string) (*entity.Account, error)
-	ChangeEmail(accountID int, newEmail string) error
-	ChangeNickname(accountID int, newName string) error
-	ChangePassword(accountID int, newPassword string) error
-	DeleteAccount(accountID int) error
+	ChangeEmail(accountID uint, newEmail string) error
+	ChangeNickname(accountID uint, newName string) error
+	ChangePassword(accountID uint, newPassword string) error
+	DeleteAccount(accountID uint) error
 }
 
 type accountService struct {
@@ -53,7 +53,7 @@ func (svc *accountService) NewAccount(email string, nickname string, password st
 	return newAccount, nil
 }
 
-func (svc *accountService) ChangeEmail(accountID int, newEmail string) error {
+func (svc *accountService) ChangeEmail(accountID uint, newEmail string) error {
 	err := validation.CheckEmail(newEmail)
 	if err != nil {
 		return err
@@ -74,7 +74,7 @@ func (svc *accountService) ChangeEmail(accountID int, newEmail string) error {
 	return nil
 }
 
-func (svc *accountService) ChangeNickname(accountID int, newName string) error {
+func (svc *accountService) ChangeNickname(accountID uint, newName string) error {
 	err := validation.CheckRegexMatch(svc.accountFc.NicknameRegex, newName)
 	if err != nil {
 		return err
@@ -91,7 +91,7 @@ func (svc *accountService) ChangeNickname(accountID int, newName string) error {
 	return nil
 }
 
-func (svc *accountService) ChangePassword(accountID int, newPassword string) error {
+func (svc *accountService) ChangePassword(accountID uint, newPassword string) error {
 	err := validation.CheckRegexMatch(svc.accountFc.PasswordRegex, newPassword)
 	if err != nil {
 		return err
@@ -108,7 +108,7 @@ func (svc *accountService) ChangePassword(accountID int, newPassword string) err
 	return nil
 }
 
-func (svc *accountService) DeleteAccount(accountID int) error {
+func (svc *accountService) DeleteAccount(accountID uint) error {
 	return svc.accountRepo.Delete(accountID)
 }
 

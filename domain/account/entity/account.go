@@ -7,7 +7,7 @@ import (
 )
 
 type Account struct {
-	ID       int
+	ID       uint
 	Email    string
 	Nickname string
 	Password string
