@@ -36,20 +36,14 @@ func (suite *AccountSuite) BeforeTest(suiteName, testName string) {
 	repo := NewAccountRepo(suite.db)
 	suite.repo = repo
 	// 插入测试数据
-	initialAccounts := []entity.Account{
-		{
-			Email:    "1@test.com",
-			Nickname: "1",
-			Password: "1",
-		},
-		{
-			Email:    "2@test.com",
-			Nickname: "2",
-			Password: "2",
-		},
+	initialAccounts := []*entity.Account{
+		entity.NewAccountWithID(1, "1@test.com", "1", "1"),
+		entity.NewAccountWithID(2, "2@test.com", "2", "2"),
 	}
-	for _, acc := range initialAccounts {
-		err = suite.db.Create(&acc).Error
+	for _, accP := range initialAccounts {
+		suite.T().Logf("account: %v\n", *accP)
+		err := suite.db.Exec("insert into accounts (email, nickname, password) values (?, ?, ?)",
+			accP.GetEmail(), accP.GetNickname(), accP.GetPassword()).Error
 		assert.NoError(suite.T(), err)
 	}
 }
@@ -65,20 +59,12 @@ func TestSuite(t *testing.T) {
 }
 
 func (suite *AccountSuite) TestCreateAccount() {
-	acc, err := suite.repo.Create(entity.Account{
-		Email:    "3@test.com",
-		Nickname: "3",
-		Password: "3",
-	})
+	acc, err := suite.repo.Create(*entity.NewAccountWithID(3, "3@test.com", "3", "3"))
 	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), uint(3), acc.ID)
+	assert.Equal(suite.T(), uint(3), acc.GetID())
 
 	// 使用重复邮箱创建
-	accountDuplicate, err := suite.repo.Create(entity.Account{
-		Email:    "1@test.com",
-		Nickname: "test",
-		Password: "test",
-	})
+	accountDuplicate, err := suite.repo.Create(*entity.NewAccountWithID(0, "1@test.com", "test", "test"))
 	assert.Error(suite.T(), err)
 	assert.Equal(suite.T(), (*entity.Account)(nil), accountDuplicate)
 }
@@ -86,7 +72,7 @@ func (suite *AccountSuite) TestCreateAccount() {
 func (suite *AccountSuite) TestQueryAccount() {
 	account1, err := suite.repo.Get(1)
 	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), "1@test.com", account1.Email)
+	assert.Equal(suite.T(), "1@test.com", account1.GetEmail())
 
 	// 使用不存在的id查询
 	accountErr, err := suite.repo.Get(99)
@@ -95,7 +81,7 @@ func (suite *AccountSuite) TestQueryAccount() {
 
 	account1, err = suite.repo.GetByEmail("1@test.com")
 	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), "1", account1.Password)
+	assert.Equal(suite.T(), "1", account1.GetPassword())
 
 	// 邮件不存在时查询结果应为空，不报错
 	accountEmpty, err := suite.repo.GetByEmail("99")
@@ -104,28 +90,18 @@ func (suite *AccountSuite) TestQueryAccount() {
 }
 
 func (suite *AccountSuite) TestUpdateAccount() {
-	toUpdate1 := entity.Account{
-		ID:       1,
-		Email:    "1@test.com",
-		Nickname: "newName",
-		Password: "newPassword",
-	}
-	_, err := suite.repo.Update(toUpdate1)
+	toUpdate1 := entity.NewAccountWithID(1, "1@test.com", "newName", "newPassword")
+	_, err := suite.repo.Update(*toUpdate1)
 	assert.NoError(suite.T(), err)
-	updated1, err := suite.repo.Get(toUpdate1.ID)
+	updated1, err := suite.repo.Get(toUpdate1.GetID())
 	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), toUpdate1, *updated1)
+	assert.Equal(suite.T(), *toUpdate1, *updated1)
 
 	// 使用不存在的id更新，应该不报错，但是后面查询不到该id的记录
-	toUpdate2 := entity.Account{
-		ID:       99,
-		Email:    "1@test.com",
-		Nickname: "newName",
-		Password: "newPassword",
-	}
-	_, err = suite.repo.Update(toUpdate1)
+	toUpdate2 := entity.NewAccountWithID(99, "1@test.com", "newName", "newPassword")
+	_, err = suite.repo.Update(*toUpdate1)
 	assert.NoError(suite.T(), err)
-	updated2, err := suite.repo.Get(toUpdate2.ID)
+	updated2, err := suite.repo.Get(toUpdate2.GetID())
 	assert.Error(suite.T(), err)
 	assert.Equal(suite.T(), (*entity.Account)(nil), updated2)
 }
@@ -136,7 +112,7 @@ func (suite *AccountSuite) TestDeleteAccount() {
 	err = suite.repo.Delete(2)
 	assert.NoError(suite.T(), err)
 
-	// 使用不存在的id删除，不会报错
+	// 使用不存在的id删除，会报错unprocessable
 	err = suite.repo.Delete(99)
-	assert.NoError(suite.T(), err)
+	assert.Error(suite.T(), err)
 }

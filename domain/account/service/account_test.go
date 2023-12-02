@@ -3,6 +3,7 @@ package service
 import (
 	"CloudDrive/domain/account/entity"
 	"CloudDrive/domain/account/repository"
+	"errors"
 	"fmt"
 	"go.uber.org/mock/gomock"
 	"reflect"
@@ -12,6 +13,7 @@ import (
 func Test_accountService_NewAccount(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
+	var createErr = fmt.Errorf("create error") // 测试用的错误
 
 	type args struct {
 		email    string
@@ -34,21 +36,11 @@ func Test_accountService_NewAccount(t *testing.T) {
 				nickname: "seineo",
 				password: "123456",
 			},
-			targetEmailErr: nil,
-			targetCreateAcc: &entity.Account{
-				ID:       0,
-				Email:    "123@456.com",
-				Nickname: "seineo",
-				Password: "123456",
-			},
+			targetEmailErr:  nil,
+			targetCreateAcc: entity.NewAccountWithID(0, "123@456.com", "seineo", "123456"),
 			targetCreateErr: nil,
-			wantAcc: &entity.Account{
-				ID:       0,
-				Email:    "123@456.com",
-				Nickname: "seineo",
-				Password: "123456",
-			},
-			wantErr: nil,
+			wantAcc:         entity.NewAccountWithID(0, "123@456.com", "seineo", "123456"),
+			wantErr:         nil,
 		},
 		{
 			name: "email used",
@@ -59,7 +51,7 @@ func Test_accountService_NewAccount(t *testing.T) {
 			},
 			targetEmailErr:  EmailUsedError,
 			targetCreateAcc: nil,
-			targetCreateErr: fmt.Errorf("create error"),
+			targetCreateErr: createErr,
 			wantAcc:         nil,
 			wantErr:         EmailUsedError,
 		},
@@ -72,9 +64,9 @@ func Test_accountService_NewAccount(t *testing.T) {
 			},
 			targetEmailErr:  nil,
 			targetCreateAcc: nil,
-			targetCreateErr: fmt.Errorf("create error"),
+			targetCreateErr: createErr,
 			wantAcc:         nil,
-			wantErr:         fmt.Errorf("create error"),
+			wantErr:         createErr,
 		},
 	}
 	for _, tt := range tests {
@@ -89,7 +81,7 @@ func Test_accountService_NewAccount(t *testing.T) {
 			})
 
 			got, err := svc.NewAccount(tt.args.email, tt.args.nickname, tt.args.password)
-			if err != tt.wantErr {
+			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("NewAccount() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
@@ -99,3 +91,5 @@ func Test_accountService_NewAccount(t *testing.T) {
 		})
 	}
 }
+
+//TODO 增加其余接口的单测
