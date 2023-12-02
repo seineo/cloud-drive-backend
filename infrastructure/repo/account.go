@@ -1,11 +1,16 @@
 package repo
 
 import (
+	"CloudDrive/common/slugerror"
 	"CloudDrive/domain/account/entity"
 	"CloudDrive/domain/account/repository"
+	"errors"
 	"fmt"
 	"gorm.io/gorm"
 )
+
+var RecordNotFoundError = slugerror.NewSlugError(slugerror.ErrUnprocessable,
+	"request unprocessable", "record not found in the database")
 
 type account struct {
 	gorm.Model
@@ -25,26 +30,25 @@ func NewAccountRepo(db *gorm.DB) repository.AccountRepo {
 	return &accountRepo{db: db}
 }
 
-func fromDomainAccount(acc entity.Account) account {
-	return account{
-		Email:    acc.Email,
-		Nickname: acc.Nickname,
-		Password: acc.Password,
+// 领域的账号可能最初并无ID，数据库分配后才有，所以这里不获取他的ID
+func fromDomainAccount(ea entity.Account) *account {
+	return &account{
+		Email:    ea.GetEmail(),
+		Nickname: ea.GetNickname(),
+		Password: ea.GetPassword(),
 	}
 }
 
 func toDomainAccount(mysqlAccount account) *entity.Account {
-	return &entity.Account{
-		ID:       mysqlAccount.ID,
-		Email:    mysqlAccount.Email,
-		Nickname: mysqlAccount.Nickname,
-		Password: mysqlAccount.Password,
-	}
+	return entity.NewAccountWithID(mysqlAccount.ID, mysqlAccount.Email, mysqlAccount.Nickname, mysqlAccount.Password)
 }
 
 func (repo *accountRepo) Get(accountID uint) (*entity.Account, error) {
 	mysqlAccount := account{}
 	if err := repo.db.First(&mysqlAccount, "id = ?", accountID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, RecordNotFoundError
+		}
 		return nil, fmt.Errorf("failed to get account by id: %w", err)
 	}
 	return toDomainAccount(mysqlAccount), nil
@@ -58,26 +62,34 @@ func (repo *accountRepo) GetByEmail(email string) (*entity.Account, error) {
 	return toDomainAccount(mysqlAccount), nil
 }
 
-func (repo *accountRepo) Create(acc entity.Account) (*entity.Account, error) {
-	mysqlAccount := fromDomainAccount(acc)
-	if err := repo.db.Create(&mysqlAccount).Error; err != nil {
+func (repo *accountRepo) Create(ea entity.Account) (*entity.Account, error) {
+	mysqlAccount := fromDomainAccount(ea)
+	if err := repo.db.Create(mysqlAccount).Error; err != nil {
 		return nil, fmt.Errorf("failed to create account: %w", err)
 	}
-	return toDomainAccount(mysqlAccount), nil
+	return toDomainAccount(*mysqlAccount), nil
 }
 
-func (repo *accountRepo) Update(acc entity.Account) (*entity.Account, error) {
-	mysqlAccount := fromDomainAccount(acc)
+func (repo *accountRepo) Update(ea entity.Account) (*entity.Account, error) {
+	mysqlAccount := fromDomainAccount(ea)
 	// 请注意Updates使用struct更新时默认只更新非零字段
-	if err := repo.db.Model(&account{}).Where("id = ?", acc.ID).Updates(mysqlAccount).Error; err != nil {
-		return nil, fmt.Errorf("failed to update account: %w", err)
+	result := repo.db.Model(&account{}).Where("id = ?", ea.GetID()).Updates(*mysqlAccount)
+	if result.Error != nil {
+		return nil, fmt.Errorf("failed to update account: %w", result.Error)
 	}
-	return toDomainAccount(mysqlAccount), nil
+	if result.RowsAffected == 0 {
+		return nil, RecordNotFoundError
+	}
+	return toDomainAccount(*mysqlAccount), nil
 }
 
 func (repo *accountRepo) Delete(accountID uint) error {
-	if err := repo.db.Delete(&account{}, accountID).Error; err != nil {
-		return fmt.Errorf("failed to delete account: %w", err)
+	result := repo.db.Delete(&account{}, accountID)
+	if result.Error != nil {
+		return fmt.Errorf("failed to delete account: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return RecordNotFoundError
 	}
 	return nil
 }

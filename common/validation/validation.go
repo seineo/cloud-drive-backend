@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"CloudDrive/common/slugerror"
 	"fmt"
 	"net/mail"
 	"regexp"
@@ -9,7 +10,7 @@ import (
 func CheckEmail(email string) error {
 	_, mailErr := mail.ParseAddress(email)
 	if mailErr != nil {
-		return fmt.Errorf("email is not valid: %w", mailErr)
+		return slugerror.NewSlugError(slugerror.ErrInvalidInput, mailErr.Error(), "email is invalid")
 	}
 	return nil
 }
@@ -17,7 +18,8 @@ func CheckEmail(email string) error {
 func CheckRegexMatch(regex string, input string) error {
 	pattern := regexp.MustCompile(regex)
 	if !pattern.MatchString(input) {
-		return fmt.Errorf("string %s does not match the pattern %s", input, regex)
+		return slugerror.NewSlugError(slugerror.ErrInvalidInput, "pattern not match",
+			fmt.Sprintf("input %s does not match pattern %s", input, pattern))
 	}
 	return nil
 }

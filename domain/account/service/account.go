@@ -1,10 +1,9 @@
 package service
 
 import (
-	"CloudDrive/common/validation"
+	"CloudDrive/common/slugerror"
 	"CloudDrive/domain/account/entity"
 	"CloudDrive/domain/account/repository"
-	"errors"
 )
 
 type AccountService interface {
@@ -20,7 +19,7 @@ type accountService struct {
 	accountFc   entity.FactoryConfig
 }
 
-var EmailUsedError = errors.New("email has already been used")
+var EmailUsedError = slugerror.NewSlugError(slugerror.ErrConflict, "resource conflict", "email has already been used")
 
 func (svc *accountService) checkEmailNotUsed(email string) error {
 	account, err := svc.accountRepo.GetByEmail(email)
@@ -54,20 +53,19 @@ func (svc *accountService) NewAccount(email string, nickname string, password st
 }
 
 func (svc *accountService) ChangeEmail(accountID uint, newEmail string) error {
-	err := validation.CheckEmail(newEmail)
+	err := svc.checkEmailNotUsed(newEmail)
 	if err != nil {
 		return err
 	}
-	err = svc.checkEmailNotUsed(newEmail)
+	acc, err := svc.accountRepo.Get(accountID)
 	if err != nil {
 		return err
 	}
-	account, err := svc.accountRepo.Get(accountID)
+	err = acc.UpdateEmail(newEmail)
 	if err != nil {
 		return err
 	}
-	account.Email = newEmail
-	_, err = svc.accountRepo.Update(*account)
+	_, err = svc.accountRepo.Update(*acc)
 	if err != nil {
 		return err
 	}
@@ -75,16 +73,15 @@ func (svc *accountService) ChangeEmail(accountID uint, newEmail string) error {
 }
 
 func (svc *accountService) ChangeNickname(accountID uint, newName string) error {
-	err := validation.CheckRegexMatch(svc.accountFc.NicknameRegex, newName)
+	acc, err := svc.accountRepo.Get(accountID)
 	if err != nil {
 		return err
 	}
-	account, err := svc.accountRepo.Get(accountID)
+	err = acc.UpdateNickname(svc.accountFc, newName)
 	if err != nil {
 		return err
 	}
-	account.Nickname = newName
-	_, err = svc.accountRepo.Update(*account)
+	_, err = svc.accountRepo.Update(*acc)
 	if err != nil {
 		return err
 	}
@@ -92,16 +89,15 @@ func (svc *accountService) ChangeNickname(accountID uint, newName string) error 
 }
 
 func (svc *accountService) ChangePassword(accountID uint, newPassword string) error {
-	err := validation.CheckRegexMatch(svc.accountFc.PasswordRegex, newPassword)
+	acc, err := svc.accountRepo.Get(accountID)
 	if err != nil {
 		return err
 	}
-	account, err := svc.accountRepo.Get(accountID)
+	err = acc.UpdatePassword(svc.accountFc, newPassword)
 	if err != nil {
 		return err
 	}
-	account.Password = newPassword
-	_, err = svc.accountRepo.Update(*account)
+	_, err = svc.accountRepo.Update(*acc)
 	if err != nil {
 		return err
 	}

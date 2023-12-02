@@ -7,10 +7,10 @@ import (
 )
 
 type Account struct {
-	ID       uint
-	Email    string
-	Nickname string
-	Password string
+	id       uint
+	email    string
+	nickname string
+	password string
 }
 
 type FactoryConfig struct {
@@ -62,8 +62,62 @@ func (f *Factory) NewAccount(email string, nickname string, password string) (*A
 		return nil, err
 	}
 	return &Account{
-		Email:    email,
-		Nickname: nickname,
-		Password: password,
+		email:    email,
+		nickname: nickname,
+		password: password,
 	}, nil
+}
+
+// NewAccountWithID 仅仅用于测试，以及从仓储实体映射回来领域实体
+// 不要用于账户初始化，因为本函数不做参数验证。
+func NewAccountWithID(id uint, email string, nickname string, password string) *Account {
+	return &Account{
+		id:       id,
+		email:    email,
+		nickname: nickname,
+		password: password,
+	}
+}
+
+func (a *Account) GetID() uint {
+	return a.id
+}
+
+func (a *Account) GetEmail() string {
+	return a.email
+}
+
+func (a *Account) GetNickname() string {
+	return a.nickname
+}
+
+func (a *Account) GetPassword() string {
+	return a.password
+}
+
+func (a *Account) UpdateEmail(newEmail string) error {
+	err := validation.CheckEmail(newEmail)
+	if err != nil {
+		return err
+	}
+	a.email = newEmail
+	return nil
+}
+
+func (a *Account) UpdateNickname(fc FactoryConfig, newName string) error {
+	err := validation.CheckRegexMatch(fc.NicknameRegex, newName)
+	if err != nil {
+		return err
+	}
+	a.nickname = newName
+	return nil
+}
+
+func (a *Account) UpdatePassword(fc FactoryConfig, newPassword string) error {
+	err := validation.CheckRegexMatch(fc.PasswordRegex, newPassword)
+	if err != nil {
+		return err
+	}
+	a.password = newPassword
+	return nil
 }
