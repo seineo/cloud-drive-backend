@@ -18,6 +18,7 @@ type UserLogin struct {
 func RegisterSessionsRoutes(router *gin.Engine) {
 	group := router.Group("/api/v1/sessions")
 	group.POST("", login)
+
 	group.DELETE("current_session", middleware.AuthCheck, logout)
 }
 

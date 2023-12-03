@@ -2,24 +2,70 @@ package service
 
 import (
 	"CloudDrive/adapters/http"
+	"CloudDrive/common/slugerror"
 	"CloudDrive/domain/account/entity"
 	"CloudDrive/domain/account/service"
+	"github.com/alexedwards/argon2id"
 )
 
 type ApplicationAccount interface {
-	Create(user http.UserSignUpRequest) (*entity.Account, error)
+	Create(user http.AccountSignUpRequest) (*entity.Account, error)
+	Login(user http.AccountLoginRequest) (*entity.Account, error)
+	Update(accountID uint, user http.AccountUpdateRequest) error
+	Delete(accountID uint) error
 }
 
 type applicationAccount struct {
 	accountService service.AccountService
 }
 
-func (a *applicationAccount) Create(user http.UserSignUpRequest) (*entity.Account, error) {
-	account, err := a.accountService.NewAccount(user.Email, user.Name, user.Password)
+func (a *applicationAccount) Login(user http.AccountLoginRequest) (*entity.Account, error) {
+	// 查看邮箱对应账号是否存在
+	account, err := a.accountService.GetAccount(user.Email)
+	if err != nil {
+		return nil, err
+	}
+	// 查看账号密码是否匹配
+	match, err := argon2id.ComparePasswordAndHash(user.Password, account.GetPassword())
+	if err != nil {
+		return nil, err
+	}
+	if !match {
+		return nil, slugerror.NewSlugError(slugerror.ErrUnauthorized, "invalid password", "password not match")
+	}
+	return account, nil
+}
+
+func (a *applicationAccount) Create(user http.AccountSignUpRequest) (*entity.Account, error) {
+	account, err := a.accountService.NewAccount(user.Email, user.Nickname, user.Password)
 	if err != nil {
 		return nil, err
 	}
 	return account, nil
+}
+
+func (a *applicationAccount) Update(accountID uint, user http.AccountUpdateRequest) error {
+	if len(user.Email) > 0 {
+		if err := a.accountService.ChangeEmail(accountID, user.Email); err != nil {
+			return err
+		}
+	} else if len(user.Nickname) > 0 {
+		if err := a.accountService.ChangeNickname(accountID, user.Nickname); err != nil {
+			return err
+		}
+	} else if len(user.Password) > 0 {
+		if err := a.accountService.ChangePassword(accountID, user.Password); err != nil {
+			return err
+		}
+	} else {
+		return slugerror.NewSlugError(slugerror.ErrInvalidInput,
+			"empty request data", "The request needs to have a field that is not empty")
+	}
+	return nil
+}
+
+func (a *applicationAccount) Delete(accountID uint) error {
+	return a.accountService.DeleteAccount(accountID)
 }
 
 func NewApplicationAccount(acc service.AccountService) ApplicationAccount {
