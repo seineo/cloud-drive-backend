@@ -14,6 +14,7 @@ func Test_accountService_NewAccount(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	var createErr = fmt.Errorf("create error") // 测试用的错误
+	var normalAccount = entity.NewAccountWithID(0, "123@456.com", "seineo", "123456")
 
 	type args struct {
 		email    string
@@ -37,9 +38,9 @@ func Test_accountService_NewAccount(t *testing.T) {
 				password: "123456",
 			},
 			targetEmailErr:  nil,
-			targetCreateAcc: entity.NewAccountWithID(0, "123@456.com", "seineo", "123456"),
+			targetCreateAcc: normalAccount,
 			targetCreateErr: nil,
-			wantAcc:         entity.NewAccountWithID(0, "123@456.com", "seineo", "123456"),
+			wantAcc:         normalAccount,
 			wantErr:         nil,
 		},
 		{

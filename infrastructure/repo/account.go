@@ -40,7 +40,7 @@ func fromDomainAccount(ea entity.Account) *account {
 }
 
 func toDomainAccount(mysqlAccount account) *entity.Account {
-	return entity.NewAccountWithID(mysqlAccount.ID, mysqlAccount.Email, mysqlAccount.Nickname, mysqlAccount.Password)
+	return entity.UnmarshallAccount(mysqlAccount.ID, mysqlAccount.Email, mysqlAccount.Nickname, mysqlAccount.Password)
 }
 
 func (repo *accountRepo) Get(accountID uint) (*entity.Account, error) {

@@ -4,6 +4,7 @@ import (
 	"CloudDrive/common/validation"
 	"errors"
 	"fmt"
+	"github.com/alexedwards/argon2id"
 )
 
 type Account struct {
@@ -61,16 +62,31 @@ func (f *Factory) NewAccount(email string, nickname string, password string) (*A
 	if err := f.validate(email, nickname, password); err != nil {
 		return nil, err
 	}
+	// 使用 argon 加密密码
+	hashedPassword, err := argon2id.CreateHash(password, argon2id.DefaultParams)
+	if err != nil {
+		return nil, err
+	}
 	return &Account{
 		email:    email,
 		nickname: nickname,
-		password: password,
+		password: hashedPassword,
 	}, nil
 }
 
-// NewAccountWithID 仅仅用于测试，以及从仓储实体映射回来领域实体
-// 不要用于账户初始化，因为本函数不做参数验证。
+// NewAccountWithID 仅仅用于测试，不要用于账户初始化，因为本函数不做参数验证
 func NewAccountWithID(id uint, email string, nickname string, password string) *Account {
+	hashedPassword, _ := argon2id.CreateHash(password, argon2id.DefaultParams)
+	return &Account{
+		id:       id,
+		email:    email,
+		nickname: nickname,
+		password: hashedPassword,
+	}
+}
+
+// UnmarshallAccount 从仓储实体映射回来领域实体，因为本函数不做参数验证和参数转换
+func UnmarshallAccount(id uint, email string, nickname string, password string) *Account {
 	return &Account{
 		id:       id,
 		email:    email,

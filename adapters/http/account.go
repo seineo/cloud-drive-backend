@@ -3,6 +3,7 @@ package http
 import (
 	"CloudDrive/application/service"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	"net/http"
 )
 
@@ -36,6 +37,7 @@ func (ah *AccountHandler) register(c *gin.Context) {
 		RespondWithError(c, err)
 		return
 	}
+	logrus.WithFields(logrus.Fields{"email": user.Email, "nickname": user.Name}).Info("user register")
 	c.JSON(http.StatusOK, account)
 }
 
