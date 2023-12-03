@@ -4,10 +4,13 @@ import (
 	"CloudDrive/common/slugerror"
 	"CloudDrive/domain/account/entity"
 	"CloudDrive/domain/account/repository"
+	"CloudDrive/infrastructure/repo"
+	"errors"
 )
 
 type AccountService interface {
 	NewAccount(email string, nickname string, password string) (*entity.Account, error)
+	GetAccount(email string) (*entity.Account, error) // 找不到账号时不报错，Account为空
 	ChangeEmail(accountID uint, newEmail string) error
 	ChangeNickname(accountID uint, newName string) error
 	ChangePassword(accountID uint, newPassword string) error
@@ -22,14 +25,15 @@ type accountService struct {
 var EmailUsedError = slugerror.NewSlugError(slugerror.ErrConflict, "resource conflict", "email has already been used")
 
 func (svc *accountService) checkEmailNotUsed(email string) error {
-	account, err := svc.accountRepo.GetByEmail(email)
+	_, err := svc.accountRepo.GetByEmail(email)
 	if err != nil {
-		return err
+		if errors.Is(err, repo.RecordNotFoundError) { // 没找到说明没有人使用，则不返回错误
+			return nil
+		} else {
+			return err
+		}
 	}
-	if account != nil {
-		return EmailUsedError
-	}
-	return nil
+	return EmailUsedError
 }
 
 func (svc *accountService) NewAccount(email string, nickname string, password string) (*entity.Account, error) {
@@ -50,6 +54,10 @@ func (svc *accountService) NewAccount(email string, nickname string, password st
 		return nil, err
 	}
 	return newAccount, nil
+}
+
+func (svc *accountService) GetAccount(email string) (*entity.Account, error) {
+	return svc.accountRepo.GetByEmail(email)
 }
 
 func (svc *accountService) ChangeEmail(accountID uint, newEmail string) error {

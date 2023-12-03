@@ -3,6 +3,7 @@ package service
 import (
 	"CloudDrive/domain/account/entity"
 	"CloudDrive/domain/account/repository"
+	"CloudDrive/infrastructure/repo"
 	"errors"
 	"fmt"
 	"go.uber.org/mock/gomock"
@@ -37,7 +38,7 @@ func Test_accountService_NewAccount(t *testing.T) {
 				nickname: "seineo",
 				password: "123456",
 			},
-			targetEmailErr:  nil,
+			targetEmailErr:  repo.RecordNotFoundError,
 			targetCreateAcc: normalAccount,
 			targetCreateErr: nil,
 			wantAcc:         normalAccount,
@@ -63,7 +64,7 @@ func Test_accountService_NewAccount(t *testing.T) {
 				nickname: "seineo",
 				password: "123456",
 			},
-			targetEmailErr:  nil,
+			targetEmailErr:  repo.RecordNotFoundError,
 			targetCreateAcc: nil,
 			targetCreateErr: createErr,
 			wantAcc:         nil,

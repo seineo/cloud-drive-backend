@@ -56,7 +56,10 @@ func (repo *accountRepo) Get(accountID uint) (*entity.Account, error) {
 
 func (repo *accountRepo) GetByEmail(email string) (*entity.Account, error) {
 	mysqlAccount := account{}
-	if err := repo.db.Find(&mysqlAccount, "email = ?", email).Error; err != nil {
+	if err := repo.db.First(&mysqlAccount, "email = ?", email).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, RecordNotFoundError
+		}
 		return nil, fmt.Errorf("failed to get account by email: %w", err)
 	}
 	return toDomainAccount(mysqlAccount), nil

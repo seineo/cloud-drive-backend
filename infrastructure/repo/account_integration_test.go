@@ -81,12 +81,12 @@ func (suite *AccountSuite) TestQueryAccount() {
 
 	account1, err = suite.repo.GetByEmail("1@test.com")
 	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), "1", account1.GetPassword())
+	assert.Equal(suite.T(), "1", account1.GetNickname())
 
-	// 邮件不存在时查询结果应为空，不报错
+	// 邮件不存在时，报错
 	accountEmpty, err := suite.repo.GetByEmail("99")
-	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), &entity.Account{}, accountEmpty)
+	assert.Error(suite.T(), err)
+	assert.Equal(suite.T(), (*entity.Account)(nil), accountEmpty)
 }
 
 func (suite *AccountSuite) TestUpdateAccount() {
