@@ -23,11 +23,15 @@ type accountRepo struct {
 	db *gorm.DB
 }
 
-func NewAccountRepo(db *gorm.DB) repository.AccountRepo {
+func NewAccountRepo(db *gorm.DB) (repository.AccountRepo, error) {
 	if db == nil {
 		panic("missing db")
 	}
-	return &accountRepo{db: db}
+	err := db.AutoMigrate(&account{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to migrate account model: %w", err)
+	}
+	return &accountRepo{db: db}, nil
 }
 
 // 领域的账号可能最初并无ID，数据库分配后才有，所以这里不获取他的ID

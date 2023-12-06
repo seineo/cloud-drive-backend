@@ -33,7 +33,8 @@ func (suite *AccountSuite) BeforeTest(suiteName, testName string) {
 	// 创建表格
 	err := suite.db.AutoMigrate(&account{})
 	assert.NoError(suite.T(), err)
-	repo := NewAccountRepo(suite.db)
+	repo, err := NewAccountRepo(suite.db)
+	assert.NoError(suite.T(), err)
 	suite.repo = repo
 	// 插入测试数据
 	initialAccounts := []*entity.Account{
