@@ -1,7 +1,7 @@
 package service
 
 import (
-	"CloudDrive/adapters/http"
+	"CloudDrive/adapters/http/types"
 	"CloudDrive/common/slugerror"
 	"CloudDrive/domain/account/entity"
 	"CloudDrive/domain/account/service"
@@ -9,9 +9,9 @@ import (
 )
 
 type ApplicationAccount interface {
-	Create(user http.AccountSignUpRequest) (*entity.Account, error)
-	Login(user http.AccountLoginRequest) (*entity.Account, error)
-	Update(accountID uint, user http.AccountUpdateRequest) error
+	Create(user types.AccountSignUpRequest) (*entity.Account, error)
+	Login(user types.AccountLoginRequest) (*entity.Account, error)
+	Update(accountID uint, user types.AccountUpdateRequest) error
 	Delete(accountID uint) error
 }
 
@@ -19,7 +19,7 @@ type applicationAccount struct {
 	accountService service.AccountService
 }
 
-func (a *applicationAccount) Login(user http.AccountLoginRequest) (*entity.Account, error) {
+func (a *applicationAccount) Login(user types.AccountLoginRequest) (*entity.Account, error) {
 	// 查看邮箱对应账号是否存在
 	account, err := a.accountService.GetAccount(user.Email)
 	if err != nil {
@@ -36,7 +36,7 @@ func (a *applicationAccount) Login(user http.AccountLoginRequest) (*entity.Accou
 	return account, nil
 }
 
-func (a *applicationAccount) Create(user http.AccountSignUpRequest) (*entity.Account, error) {
+func (a *applicationAccount) Create(user types.AccountSignUpRequest) (*entity.Account, error) {
 	account, err := a.accountService.NewAccount(user.Email, user.Nickname, user.Password)
 	if err != nil {
 		return nil, err
@@ -44,7 +44,7 @@ func (a *applicationAccount) Create(user http.AccountSignUpRequest) (*entity.Acc
 	return account, nil
 }
 
-func (a *applicationAccount) Update(accountID uint, user http.AccountUpdateRequest) error {
+func (a *applicationAccount) Update(accountID uint, user types.AccountUpdateRequest) error {
 	if len(user.Email) > 0 {
 		if err := a.accountService.ChangeEmail(accountID, user.Email); err != nil {
 			return err

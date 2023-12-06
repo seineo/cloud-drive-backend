@@ -1,6 +1,7 @@
-package http
+package handler
 
 import (
+	"CloudDrive/adapters/http/types"
 	"CloudDrive/application/service"
 	"CloudDrive/domain/account/entity"
 	"github.com/gin-contrib/sessions"
@@ -15,6 +16,17 @@ type AccountHandler struct {
 
 func NewAccountHandler(applicationAccount service.ApplicationAccount) *AccountHandler {
 	return &AccountHandler{applicationAccount: applicationAccount}
+}
+
+func RegisterAccountRoutes(router *gin.Engine, applicationAccount service.ApplicationAccount) {
+	handler := NewAccountHandler(applicationAccount)
+
+	group := router.Group("/api/v1/accounts")
+	group.POST("", handler.register)
+	group.POST("/sessions", handler.login)
+	group.DELETE("/sessions/me", handler.logout)
+	group.PATCH("/me", handler.updateAccount)
+	group.DELETE("/me", handler.deleteAccount)
 }
 
 func setSession(c *gin.Context, account *entity.Account) {
@@ -39,19 +51,16 @@ func clearSession(c *gin.Context, session sessions.Session) {
 	}
 }
 
-func registerAccountRoutes(router *gin.Engine, applicationAccount service.ApplicationAccount) {
-	handler := NewAccountHandler(applicationAccount)
-
-	group := router.Group("/api/v1/accounts")
-	group.POST("", handler.register)
-	group.POST("/sessions", handler.login)
-	group.DELETE("/sessions/me", handler.logout)
-	group.PATCH("/me", handler.updateAccount)
-	group.DELETE("/me", handler.deleteAccount)
+func domainToResponse(account *entity.Account) types.AccountResponse {
+	return types.AccountResponse{
+		Id:       account.GetID(),
+		Email:    account.GetEmail(),
+		Nickname: account.GetNickname(),
+	}
 }
 
 func (ah *AccountHandler) register(c *gin.Context) {
-	var user AccountSignUpRequest
+	var user types.AccountSignUpRequest
 	if err := c.ShouldBindJSON(&user); err != nil {
 		InvalidInputErr(c, err, "invalid request data for user registration")
 		return
@@ -65,11 +74,11 @@ func (ah *AccountHandler) register(c *gin.Context) {
 		"id":       account.GetID(),
 		"email":    user.Email,
 		"nickname": user.Nickname}).Info("user register")
-	c.JSON(http.StatusOK, account)
+	c.JSON(http.StatusOK, domainToResponse(account))
 }
 
 func (ah *AccountHandler) login(c *gin.Context) {
-	var user AccountLoginRequest
+	var user types.AccountLoginRequest
 	if err := c.ShouldBindJSON(&user); err != nil {
 		InvalidInputErr(c, err, "invalid request data for user login")
 		return
@@ -82,7 +91,7 @@ func (ah *AccountHandler) login(c *gin.Context) {
 	// 存储session
 	setSession(c, account)
 	logrus.WithFields(logrus.Fields{"id": account.GetID()}).Info("user login")
-	c.JSON(http.StatusOK, account)
+	c.JSON(http.StatusOK, domainToResponse(account))
 }
 
 func (ah *AccountHandler) logout(c *gin.Context) {
@@ -95,7 +104,7 @@ func (ah *AccountHandler) logout(c *gin.Context) {
 }
 
 func (ah *AccountHandler) updateAccount(c *gin.Context) {
-	var user AccountUpdateRequest
+	var user types.AccountUpdateRequest
 	if err := c.ShouldBindJSON(&user); err != nil {
 		InvalidInputErr(c, err, "invalid request data for user profile update")
 		return

@@ -1,4 +1,4 @@
-package http
+package types
 
 type AccountSignUpRequest struct {
 	Email    string `json:"email" binding:"required,email"`
@@ -15,4 +15,10 @@ type AccountUpdateRequest struct {
 	Email    string `json:"email"`
 	Nickname string `json:"nickname"`
 	Password string `json:"password"`
+}
+
+type AccountResponse struct {
+	Id       uint   `json:"id"`
+	Email    string `json:"email"`
+	Nickname string `json:"nickname"`
 }

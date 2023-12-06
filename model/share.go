@@ -18,7 +18,3 @@ type Share struct {
 	// 再加一个字段为 isLimited bool类型，当该字段true且userID为空，说明分享给限定用户，但是他还没注册，不允许访问；当注册过后，在更新UserID
 	// 当该字段为false，userID应当为空， password可以为空也可以不为空
 }
-
-func CreateShare(share *Share) error {
-	return db.Create(share).Error
-}

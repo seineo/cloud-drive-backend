@@ -1,4 +1,4 @@
-package http
+package handler
 
 import (
 	"CloudDrive/common/slugerror"
@@ -47,5 +47,5 @@ func RespondWithError(c *gin.Context, err error) {
 
 func httpRespondWithError(c *gin.Context, code int, error error, slug string) {
 	logrus.WithError(error).Error(slug)
-	c.JSON(code, gin.H{"error": error, "message": slug})
+	c.JSON(code, gin.H{"error": error.Error(), "message": slug})
 }

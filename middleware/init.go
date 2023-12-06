@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"CloudDrive/config"
+	"CloudDrive/common/config"
 	"github.com/sirupsen/logrus"
 )
 
