@@ -5,6 +5,7 @@ import (
 	applicationService "CloudDrive/application/service"
 	"CloudDrive/common/config"
 	"CloudDrive/common/logs"
+	"CloudDrive/common/middleware"
 	"CloudDrive/domain/account/entity"
 	domainService "CloudDrive/domain/account/service"
 	"CloudDrive/infrastructure/repo"
@@ -49,7 +50,7 @@ func (hg *HttpServer) Run() {
 		logrus.WithError(err).Fatal("fail to connect redis for middleware sessions")
 	}
 	// 设置全局中间件
-	hg.engine.Use(sessions.Sessions("session_id", store))
+	hg.engine.Use(sessions.Sessions("session_id", store), middleware.LoggingMiddleware())
 
 	// 设置mysql
 	dsn := fmt.Sprintf("%s:%s@%s(%s)/%s?parseTime=true",
