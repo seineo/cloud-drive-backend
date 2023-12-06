@@ -65,7 +65,7 @@ func (hg *HttpServer) Run() {
 	}
 
 	// account 依赖注入
-	factoryConfig := entity.FactoryConfig{
+	factoryConfig := entity.AccountFactoryConfig{
 		NicknameRegex: "^[a-zA-Z_][a-zA-Z0-9_-]{0,38}$",
 		PasswordRegex: "^[A-Za-z0-9]{6,38}$",
 	}

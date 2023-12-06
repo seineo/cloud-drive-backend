@@ -4,7 +4,6 @@ import (
 	"CloudDrive/model"
 	"CloudDrive/response"
 	"archive/zip"
-	"github.com/robfig/cron/v3"
 	"io"
 	"os"
 	"path/filepath"
@@ -20,7 +19,7 @@ type FileInfo struct {
 
 // MyWalkFunc is a user-defined function called by Walk to visit each file or directory.
 // Errors in Walk will be passed to MyWalkFunc to deal with,
-// and the errors thrown by MyWalkFunc will be thrown by Walk then.
+// and the slugerror thrown by MyWalkFunc will be thrown by Walk then.
 type MyWalkFunc func(path string, fileInfo FileInfo, err error) error
 
 // Walk descends path and calls walkFn for each file or directory.
@@ -154,12 +153,6 @@ func ArchiveFile(location string, fileName string, dstPath string) error {
 	io.Copy(zipFile, file)
 
 	return nil
-}
-
-func ScheduleDeleteStaleFiles() {
-	c := cron.New()
-	c.AddFunc(configs.File.StaleTimeCron, model.DeleteStaleFiles)
-	c.Start()
 }
 
 func Convert2FileResponse(files []model.UserFileInfo, dirs []model.Directory) []response.FileResponse {

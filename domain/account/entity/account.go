@@ -14,16 +14,16 @@ type Account struct {
 	password string
 }
 
-type FactoryConfig struct {
+type AccountFactoryConfig struct {
 	NicknameRegex string
 	PasswordRegex string
 }
 
-type Factory struct {
-	fc FactoryConfig
+type AccountFactory struct {
+	fc AccountFactoryConfig
 }
 
-func (fc *FactoryConfig) validateConfig() error {
+func (fc *AccountFactoryConfig) validateConfig() error {
 	var err error
 	if len(fc.NicknameRegex) == 0 {
 		err = errors.Join(err, fmt.Errorf("regex for nickname should not be empty"))
@@ -34,14 +34,14 @@ func (fc *FactoryConfig) validateConfig() error {
 	return err
 }
 
-func NewFactory(fc FactoryConfig) (*Factory, error) {
+func NewFactory(fc AccountFactoryConfig) (*AccountFactory, error) {
 	if err := fc.validateConfig(); err != nil {
 		return nil, err
 	}
-	return &Factory{fc}, nil
+	return &AccountFactory{fc}, nil
 }
 
-func (f *Factory) validate(email string, nickname string, password string) error {
+func (f *AccountFactory) validate(email string, nickname string, password string) error {
 	var err error
 	mailErr := validation.CheckEmail(email)
 	if mailErr != nil {
@@ -58,7 +58,7 @@ func (f *Factory) validate(email string, nickname string, password string) error
 	return err
 }
 
-func (f *Factory) NewAccount(email string, nickname string, password string) (*Account, error) {
+func (f *AccountFactory) NewAccount(email string, nickname string, password string) (*Account, error) {
 	if err := f.validate(email, nickname, password); err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func (a *Account) UpdateEmail(newEmail string) error {
 	return nil
 }
 
-func (a *Account) UpdateNickname(fc FactoryConfig, newName string) error {
+func (a *Account) UpdateNickname(fc AccountFactoryConfig, newName string) error {
 	err := validation.CheckRegexMatch(fc.NicknameRegex, newName)
 	if err != nil {
 		return err
@@ -129,7 +129,7 @@ func (a *Account) UpdateNickname(fc FactoryConfig, newName string) error {
 	return nil
 }
 
-func (a *Account) UpdatePassword(fc FactoryConfig, newPassword string) error {
+func (a *Account) UpdatePassword(fc AccountFactoryConfig, newPassword string) error {
 	err := validation.CheckRegexMatch(fc.PasswordRegex, newPassword)
 	if err != nil {
 		return err

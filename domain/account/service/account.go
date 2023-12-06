@@ -22,7 +22,7 @@ type AccountService interface {
 
 type accountService struct {
 	accountRepo repository.AccountRepo
-	accountFc   entity.FactoryConfig
+	accountFc   entity.AccountFactoryConfig
 }
 
 func (svc *accountService) checkEmailNotUsed(email string) error {
@@ -121,7 +121,7 @@ func (svc *accountService) DeleteAccount(accountID uint) error {
 	return svc.accountRepo.Delete(accountID)
 }
 
-func NewAccountService(accountRepo repository.AccountRepo, fc entity.FactoryConfig) AccountService {
+func NewAccountService(accountRepo repository.AccountRepo, fc entity.AccountFactoryConfig) AccountService {
 	return &accountService{
 		accountRepo: accountRepo,
 		accountFc:   fc,

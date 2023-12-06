@@ -77,7 +77,7 @@ func Test_accountService_NewAccount(t *testing.T) {
 			mockRepo := repository.NewMockAccountRepo(ctrl)
 			mockRepo.EXPECT().GetByEmail(tt.args.email).Return(nil, tt.targetEmailErr)
 			mockRepo.EXPECT().Create(gomock.Any()).Return(tt.targetCreateAcc, tt.targetCreateErr).AnyTimes()
-			svc := NewAccountService(mockRepo, entity.FactoryConfig{
+			svc := NewAccountService(mockRepo, entity.AccountFactoryConfig{
 				NicknameRegex: "^[a-zA-Z_][a-zA-Z0-9_-]{0,38}$",
 				PasswordRegex: "^[A-Za-z0-9]{6,38}$",
 			})

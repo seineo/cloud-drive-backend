@@ -6,7 +6,7 @@ import (
 
 func TestNewFactory(t *testing.T) {
 	type args struct {
-		fc FactoryConfig
+		fc AccountFactoryConfig
 	}
 	tests := []struct {
 		name    string
@@ -15,7 +15,7 @@ func TestNewFactory(t *testing.T) {
 	}{
 		{
 			name: "normal case",
-			args: args{fc: FactoryConfig{
+			args: args{fc: AccountFactoryConfig{
 				NicknameRegex: "[a-z]",
 				PasswordRegex: "[0-9]",
 			}},
@@ -23,7 +23,7 @@ func TestNewFactory(t *testing.T) {
 		},
 		{
 			name: "empty regex",
-			args: args{fc: FactoryConfig{
+			args: args{fc: AccountFactoryConfig{
 				NicknameRegex: "",
 				PasswordRegex: "",
 			}},
@@ -91,8 +91,8 @@ func TestFactory_NewAccount(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f := &Factory{
-				fc: FactoryConfig{
+			f := &AccountFactory{
+				fc: AccountFactoryConfig{
 					NicknameRegex: "^[a-zA-Z_][a-zA-Z0-9_-]{0,38}$",
 					PasswordRegex: "^[A-Za-z0-9]{6,38}$",
 				},
