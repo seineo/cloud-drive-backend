@@ -34,7 +34,7 @@ func (fc *AccountFactoryConfig) validateConfig() error {
 	return err
 }
 
-func NewFactory(fc AccountFactoryConfig) (*AccountFactory, error) {
+func NewAccountFactory(fc AccountFactoryConfig) (*AccountFactory, error) {
 	if err := fc.validateConfig(); err != nil {
 		return nil, err
 	}

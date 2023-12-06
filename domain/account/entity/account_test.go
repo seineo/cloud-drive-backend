@@ -32,9 +32,9 @@ func TestNewFactory(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewFactory(tt.args.fc)
+			_, err := NewAccountFactory(tt.args.fc)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("NewFactory() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("NewAccountFactory() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 		})

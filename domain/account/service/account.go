@@ -38,7 +38,7 @@ func (svc *accountService) checkEmailNotUsed(email string) error {
 }
 
 func (svc *accountService) NewAccount(email string, nickname string, password string) (*entity.Account, error) {
-	factory, err := entity.NewFactory(svc.accountFc)
+	factory, err := entity.NewAccountFactory(svc.accountFc)
 	if err != nil {
 		return nil, err
 	}
