@@ -8,9 +8,12 @@ import (
 	"errors"
 )
 
+var EmailUsedError = slugerror.NewSlugError(slugerror.ErrConflict, "resource conflict", "email has already been used")
+
 type AccountService interface {
 	NewAccount(email string, nickname string, password string) (*entity.Account, error)
-	GetAccount(email string) (*entity.Account, error) // 找不到账号时不报错，Account为空
+	GetAccountByID(accountID uint) (*entity.Account, error)
+	GetAccountByEmail(email string) (*entity.Account, error) // 找不到账号时不报错，Account为空
 	ChangeEmail(accountID uint, newEmail string) error
 	ChangeNickname(accountID uint, newName string) error
 	ChangePassword(accountID uint, newPassword string) error
@@ -21,8 +24,6 @@ type accountService struct {
 	accountRepo repository.AccountRepo
 	accountFc   entity.FactoryConfig
 }
-
-var EmailUsedError = slugerror.NewSlugError(slugerror.ErrConflict, "resource conflict", "email has already been used")
 
 func (svc *accountService) checkEmailNotUsed(email string) error {
 	_, err := svc.accountRepo.GetByEmail(email)
@@ -56,7 +57,11 @@ func (svc *accountService) NewAccount(email string, nickname string, password st
 	return newAccount, nil
 }
 
-func (svc *accountService) GetAccount(email string) (*entity.Account, error) {
+func (svc *accountService) GetAccountByID(accountID uint) (*entity.Account, error) {
+	return svc.accountRepo.Get(accountID)
+}
+
+func (svc *accountService) GetAccountByEmail(email string) (*entity.Account, error) {
 	return svc.accountRepo.GetByEmail(email)
 }
 

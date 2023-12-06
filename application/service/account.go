@@ -11,6 +11,7 @@ import (
 type ApplicationAccount interface {
 	Create(user types.AccountSignUpRequest) (*entity.Account, error)
 	Login(user types.AccountLoginRequest) (*entity.Account, error)
+	Get(accountID uint) (*entity.Account, error)
 	Update(accountID uint, user types.AccountUpdateRequest) error
 	Delete(accountID uint) error
 }
@@ -19,9 +20,13 @@ type applicationAccount struct {
 	accountService service.AccountService
 }
 
+func (a *applicationAccount) Get(accountID uint) (*entity.Account, error) {
+	return a.accountService.GetAccountByID(accountID)
+}
+
 func (a *applicationAccount) Login(user types.AccountLoginRequest) (*entity.Account, error) {
 	// 查看邮箱对应账号是否存在
-	account, err := a.accountService.GetAccount(user.Email)
+	account, err := a.accountService.GetAccountByEmail(user.Email)
 	if err != nil {
 		return nil, err
 	}

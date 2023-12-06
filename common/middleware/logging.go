@@ -7,18 +7,18 @@ import (
 )
 
 func LoggingMiddleware() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
+	return func(c *gin.Context) {
 		startTime := time.Now()
 
 		// 处理请求
-		ctx.Next()
+		c.Next()
 
 		endTime := time.Now()
 		latencyTime := endTime.Sub(startTime)
-		reqMethod := ctx.Request.Method
-		reqUri := ctx.Request.RequestURI
-		statusCode := ctx.Writer.Status()
-		clientIP := ctx.ClientIP()
+		reqMethod := c.Request.Method
+		reqUri := c.Request.RequestURI
+		statusCode := c.Writer.Status()
+		clientIP := c.ClientIP()
 
 		logrus.WithFields(logrus.Fields{
 			"METHOD":    reqMethod,
@@ -28,6 +28,6 @@ func LoggingMiddleware() gin.HandlerFunc {
 			"CLIENT_IP": clientIP,
 		}).Info("HTTP REQUEST")
 
-		ctx.Next()
+		c.Next()
 	}
 }
