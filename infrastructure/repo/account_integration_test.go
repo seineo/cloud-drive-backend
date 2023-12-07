@@ -55,7 +55,7 @@ func (suite *AccountSuite) AfterTest(suiteName, testName string) {
 	assert.NoError(suite.T(), err)
 }
 
-func TestSuite(t *testing.T) {
+func TestAccountSuite(t *testing.T) {
 	suite.Run(t, new(AccountSuite))
 }
 

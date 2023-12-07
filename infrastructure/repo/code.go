@@ -13,8 +13,8 @@ type codeRepo struct {
 	ctx context.Context
 }
 
-func (cr *codeRepo) SetCode(codeKey, codeValue string) error {
-	if err := cr.rdb.Set(cr.ctx, codeKey, codeValue, 10*time.Minute).Err(); err != nil {
+func (cr *codeRepo) SetCode(codeKey, codeValue string, expiration time.Duration) error {
+	if err := cr.rdb.Set(cr.ctx, codeKey, codeValue, expiration).Err(); err != nil {
 		return err
 	}
 	return nil

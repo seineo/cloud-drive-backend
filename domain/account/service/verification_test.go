@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 	"testing"
+	"time"
 )
 
 func Test_verificationService_SendAuthCode(t *testing.T) {
@@ -21,7 +22,8 @@ func Test_verificationService_SendAuthCode(t *testing.T) {
 	assert.NoError(t, err)
 
 	type args struct {
-		email string
+		email      string
+		expiration time.Duration
 	}
 	tests := []struct {
 		name             string
@@ -32,14 +34,14 @@ func Test_verificationService_SendAuthCode(t *testing.T) {
 	}{
 		{
 			name:             "normal case",
-			args:             args{email: "123@test.com"},
+			args:             args{email: "123@test.com", expiration: 10 * time.Minute},
 			targetSetCodeErr: nil,
 			want:             expectedFactory.NewVerificationCode().Get(),
 			wantErr:          false,
 		},
 		{
 			name:             "db error",
-			args:             args{email: "123@test.com"},
+			args:             args{email: "123@test.com", expiration: 10 * time.Minute},
 			targetSetCodeErr: fmt.Errorf("db error"),
 			want:             "",
 			wantErr:          true,
@@ -51,8 +53,8 @@ func Test_verificationService_SendAuthCode(t *testing.T) {
 				codeRepo: mockRepo,
 				factory:  actualFactory,
 			}
-			mockRepo.EXPECT().SetCode(gomock.Any(), gomock.Any()).Return(tt.targetSetCodeErr)
-			got, err := v.SendAuthCode(tt.args.email)
+			mockRepo.EXPECT().SetCode(gomock.Any(), gomock.Any(), gomock.Any()).Return(tt.targetSetCodeErr)
+			got, err := v.SendAuthCode(tt.args.email, tt.args.expiration)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SendAuthCode() error = %v, wantErr %v", err, tt.wantErr)
 				return

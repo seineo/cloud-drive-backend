@@ -8,7 +8,7 @@ import (
 )
 
 type VerificationService interface {
-	SendAuthCode(email string) (string, error)
+	SendAuthCode(email string, expiration time.Duration) (string, error)
 	GetAuthCode(codeKey string) (string, error)
 }
 
@@ -17,13 +17,13 @@ type verificationService struct {
 	factory  *entity.CodeFactory // 验证码工厂中有mutex锁，需要用指针传递
 }
 
-func (v *verificationService) SendAuthCode(email string) (string, error) {
+func (v *verificationService) SendAuthCode(email string, expiration time.Duration) (string, error) {
 	// 编码email和时间得到codeKey
 	codeKey := validation.SHA256Hash(email, time.Now().String())
 	// 生成code
 	code := v.factory.NewVerificationCode()
 	// 存储code
-	if err := v.codeRepo.SetCode(codeKey, code.Get()); err != nil {
+	if err := v.codeRepo.SetCode(codeKey, code.Get(), expiration); err != nil {
 		return "", err
 	}
 	// TODO 领域事件：发送验证码邮件

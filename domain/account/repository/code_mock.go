@@ -10,6 +10,7 @@ package repository
 
 import (
 	reflect "reflect"
+	time "time"
 
 	gomock "go.uber.org/mock/gomock"
 )
@@ -53,15 +54,15 @@ func (mr *MockCodeRepositoryMockRecorder) GetCode(codeKey any) *gomock.Call {
 }
 
 // SetCode mocks base method.
-func (m *MockCodeRepository) SetCode(codeKey, codeValue string) error {
+func (m *MockCodeRepository) SetCode(codeKey, codeValue string, expiration time.Duration) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetCode", codeKey, codeValue)
+	ret := m.ctrl.Call(m, "SetCode", codeKey, codeValue, expiration)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // SetCode indicates an expected call of SetCode.
-func (mr *MockCodeRepositoryMockRecorder) SetCode(codeKey, codeValue any) *gomock.Call {
+func (mr *MockCodeRepositoryMockRecorder) SetCode(codeKey, codeValue, expiration any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetCode", reflect.TypeOf((*MockCodeRepository)(nil).SetCode), codeKey, codeValue)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetCode", reflect.TypeOf((*MockCodeRepository)(nil).SetCode), codeKey, codeValue, expiration)
 }
