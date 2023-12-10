@@ -4,8 +4,10 @@ import (
 	"account/adapters/http/types"
 	"account/domain/account/entity"
 	"account/domain/account/service"
+	"common/eventbus"
 	"common/slugerror"
 	"github.com/alexedwards/argon2id"
+	"time"
 )
 
 type ApplicationAccount interface {
@@ -14,10 +16,22 @@ type ApplicationAccount interface {
 	Get(accountID uint) (*entity.Account, error)
 	Update(accountID uint, user types.AccountUpdateRequest) error
 	Delete(accountID uint) error
+	SendVerificationCode(user types.AccountCodeRequest) (string, error)
+	GetVerificationCode(email string) (string, error)
 }
 
 type applicationAccount struct {
-	accountService service.AccountService
+	accountService      service.AccountService
+	verificationService service.VerificationService
+	eventProducer       eventbus.Producer
+}
+
+func (a *applicationAccount) SendVerificationCode(user types.AccountCodeRequest) (string, error) {
+	return a.verificationService.GenerateAuthCode(user.Email, 15*time.Minute)
+}
+
+func (a *applicationAccount) GetVerificationCode(email string) (string, error) {
+	return a.verificationService.GetAuthCode(email)
 }
 
 func (a *applicationAccount) Get(accountID uint) (*entity.Account, error) {
@@ -73,6 +87,6 @@ func (a *applicationAccount) Delete(accountID uint) error {
 	return a.accountService.DeleteAccount(accountID)
 }
 
-func NewApplicationAccount(acc service.AccountService) ApplicationAccount {
-	return &applicationAccount{accountService: acc}
+func NewApplicationAccount(acc service.AccountService, verificationService service.VerificationService) ApplicationAccount {
+	return &applicationAccount{accountService: acc, verificationService: verificationService}
 }

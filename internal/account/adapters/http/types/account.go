@@ -22,3 +22,7 @@ type AccountResponse struct {
 	Email    string `json:"email"`
 	Nickname string `json:"nickname"`
 }
+
+type AccountCodeRequest struct {
+	Email string `json:"email" binding:"required,email"`
+}

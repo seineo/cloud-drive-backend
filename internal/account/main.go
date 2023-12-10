@@ -9,13 +9,16 @@ import (
 	"common/config"
 	"common/logs"
 	"common/middleware"
+	"context"
 	"fmt"
 	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/redis"
+	sessionRedis "github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
+	redis "github.com/go-redis/redis/v9"
 	"github.com/sirupsen/logrus"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"time"
 )
 
 //
@@ -44,7 +47,7 @@ func NewHttpServer(configs *config.Config, engine *gin.Engine) *HttpServer {
 
 func (hg *HttpServer) Run() {
 	// 设置session中间件
-	store, err := redis.NewStore(hg.config.RedisIdleConn, hg.config.RedisNetwork,
+	store, err := sessionRedis.NewStore(hg.config.RedisIdleConn, hg.config.RedisNetwork,
 		hg.config.RedisAddr, hg.config.RedisPassword, []byte(hg.config.RedisKey))
 	if err != nil {
 		logrus.WithError(err).Fatal("fail to connect redis for middleware sessions")
@@ -65,7 +68,7 @@ func (hg *HttpServer) Run() {
 	}
 
 	// account 依赖注入
-	factoryConfig := entity.AccountFactoryConfig{
+	accountFactoryConfig := entity.AccountFactoryConfig{
 		NicknameRegex: "^[a-zA-Z_][a-zA-Z0-9_-]{0,38}$",
 		PasswordRegex: "^[A-Za-z0-9]{6,38}$",
 	}
@@ -73,8 +76,24 @@ func (hg *HttpServer) Run() {
 	if err != nil {
 		logrus.Fatal(err.Error())
 	}
-	accountService := domainService.NewAccountService(accountRepo, factoryConfig)
-	applicationAccount := applicationService.NewApplicationAccount(accountService)
+	// code 依赖注入
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       0,
+	})
+	codeRepo, err := repo.NewCodeRepo(rdb, context.Background())
+	if err != nil {
+		logrus.Fatal(err.Error())
+	}
+	codeFactory, err := entity.NewCodeFactory(5, time.Now().UnixNano())
+	if err != nil {
+		logrus.Fatal(err.Error())
+	}
+
+	accountService := domainService.NewAccountService(accountRepo, accountFactoryConfig)
+	verificationService := domainService.NewVerificationService(codeRepo, codeFactory)
+	applicationAccount := applicationService.NewApplicationAccount(accountService, verificationService)
 	handler.RegisterAccountRoutes(hg.engine, applicationAccount)
 
 	// 运行

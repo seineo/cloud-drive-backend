@@ -36,7 +36,7 @@ func Test_verificationService_SendAuthCode(t *testing.T) {
 			name:             "normal case",
 			args:             args{email: "123@test.com", expiration: 10 * time.Minute},
 			targetSetCodeErr: nil,
-			want:             expectedFactory.NewVerificationCode().Get(),
+			want:             expectedFactory.NewVerificationCode("123@test.com").Get(),
 			wantErr:          false,
 		},
 		{
@@ -54,13 +54,13 @@ func Test_verificationService_SendAuthCode(t *testing.T) {
 				factory:  actualFactory,
 			}
 			mockRepo.EXPECT().SetCode(gomock.Any(), gomock.Any(), gomock.Any()).Return(tt.targetSetCodeErr)
-			got, err := v.SendAuthCode(tt.args.email, tt.args.expiration)
+			got, err := v.GenerateAuthCode(tt.args.email, tt.args.expiration)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SendAuthCode() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("GenerateAuthCode() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("SendAuthCode() got = %v, want %v", got, tt.want)
+				t.Errorf("GenerateAuthCode() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

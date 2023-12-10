@@ -3,35 +3,37 @@ package service
 import (
 	"account/domain/account/entity"
 	"account/domain/account/repository"
-	"common/validation"
+	"common/eventbus"
 	"time"
 )
 
 type VerificationService interface {
-	SendAuthCode(email string, expiration time.Duration) (string, error)
-	GetAuthCode(codeKey string) (string, error)
+	GenerateAuthCode(email string, expiration time.Duration) (string, error)
+	GetAuthCode(email string) (string, error)
 }
 
 type verificationService struct {
-	codeRepo repository.CodeRepository
-	factory  *entity.CodeFactory // 验证码工厂中有mutex锁，需要用指针传递
+	codeRepo      repository.CodeRepository
+	eventProducer eventbus.Producer
+	factory       *entity.CodeFactory // 验证码工厂中有mutex锁，需要用指针传递
 }
 
-func (v *verificationService) SendAuthCode(email string, expiration time.Duration) (string, error) {
-	// 编码email和时间得到codeKey
-	codeKey := validation.SHA256Hash(email, time.Now().String())
+func (v *verificationService) GenerateAuthCode(email string, expiration time.Duration) (string, error) {
 	// 生成code
-	code := v.factory.NewVerificationCode()
+	codeObj := v.factory.NewVerificationCode(email)
 	// 存储code
-	if err := v.codeRepo.SetCode(codeKey, code.Get(), expiration); err != nil {
+	if err := v.codeRepo.SetCode(email, codeObj.Get(), expiration); err != nil {
 		return "", err
 	}
-	// TODO 领域事件：发送验证码邮件
-	return code.Get(), nil
+	// TODO 存储领域事件到事件表，并清空entity的事件
+	//for _, event := range codeObj.GetEvents() {
+	//	v.eventProducer.Publish("account:code", event)
+	//}
+	return codeObj.Get(), nil
 }
 
-func (v *verificationService) GetAuthCode(codeKey string) (string, error) {
-	return v.codeRepo.GetCode(codeKey)
+func (v *verificationService) GetAuthCode(email string) (string, error) {
+	return v.codeRepo.GetCode(email)
 }
 
 func NewVerificationService(codeRepo repository.CodeRepository, factory *entity.CodeFactory) VerificationService {
