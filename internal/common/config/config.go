@@ -6,6 +6,8 @@ import (
 )
 
 type Config struct {
+	ProjectName   string `mapstructure:"PROJECT_NAME"`
+	ProjectURL    string `mapstructure:"PROJECT_URL"`
 	RedisAddr     string `mapstructure:"REDIS_ADDR"`
 	RedisPassword string `mapstructure:"REDIS_PASSWORD"`
 	RedisIdleConn int    `mapstructure:"REDIS_IDLE_CONN"`
