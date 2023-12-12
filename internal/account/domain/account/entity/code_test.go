@@ -47,8 +47,8 @@ func TestCodeFactory_NewVerificationCode(t *testing.T) {
 				digits: tt.digits,
 				r:      tt.r2,
 			}
-			code1 := cf1.NewVerificationCode().Get()
-			code2 := cf2.NewVerificationCode().Get()
+			code1 := cf1.NewVerificationCode("1@test.com").Get()
+			code2 := cf2.NewVerificationCode("1@test.com").Get()
 			if tt.wantEqual && code1 != code2 {
 				t.Errorf("code1 and code2 not equal")
 			}

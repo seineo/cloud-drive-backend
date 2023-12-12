@@ -2,7 +2,7 @@ package service
 
 import (
 	"bytes"
-	"common/config"
+	"email/config"
 	"email/domain/infrastructure"
 	"fmt"
 	"html/template"

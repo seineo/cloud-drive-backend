@@ -8,16 +8,14 @@ import (
 type Config struct {
 	ProjectName   string `mapstructure:"PROJECT_NAME"`
 	ProjectURL    string `mapstructure:"PROJECT_URL"`
-	RedisAddr     string `mapstructure:"REDIS_ADDR"`
-	RedisPassword string `mapstructure:"REDIS_PASSWORD"`
-	RedisIdleConn int    `mapstructure:"REDIS_IDLE_CONN"`
-	RedisNetwork  string `mapstructure:"REDIS_NETWORK"`
-	RedisKey      string `mapstructure:"REDIS_KEY"`
-	DBAddr        string `mapstructure:"DB_ADDR"`
-	DBUser        string `mapstructure:"DB_USER"`
-	DBPassword    string `mapstructure:"DB_PASSWORD"`
-	DBProtocol    string `mapstructure:"DB_PROTOCOL"`
-	DBDatabase    string `mapstructure:"DB_DATABASE"`
+	SMTPAddr      string `mapstructure:"SMTP_ADDR"`
+	SMTPPort      int    `mapstructure:"SMTP_PORT"`
+	SMTPUser      string `mapstructure:"SMTP_USER"`
+	SMTPPassword  string `mapstructure:"SMTP_PASSWORD"`
+	SMTPSender    string `mapstructure:"SMTP_SENDER"`
+	KafkaBroker   string `mapstructure:"KAFKA_BROKER"`
+	KafkaUsername string `mapstructure:"KAFKA_USERNAME"`
+	KafkaPassword string `mapstructure:"KAFKA_PASSWORD"`
 }
 
 func LoadConfig(path string) (*Config, error) {

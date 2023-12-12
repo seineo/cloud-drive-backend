@@ -1,7 +1,7 @@
 package service
 
 import (
-	"common/config"
+	"email/config"
 	"email/domain/infrastructure"
 	"go.uber.org/mock/gomock"
 	"testing"

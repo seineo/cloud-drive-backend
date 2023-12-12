@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func Test_verificationService_SendAuthCode(t *testing.T) {
+func Test_verificationService_GenerateAuthCode(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 

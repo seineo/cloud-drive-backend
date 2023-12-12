@@ -14,8 +14,12 @@ type VerificationService interface {
 
 type verificationService struct {
 	codeRepo      repository.CodeRepository
-	eventProducer eventbus.Producer
 	factory       *entity.CodeFactory // 验证码工厂中有mutex锁，需要用指针传递
+	eventProducer eventbus.Producer
+}
+
+func NewVerificationService(codeRepo repository.CodeRepository, factory *entity.CodeFactory, eventProducer eventbus.Producer) VerificationService {
+	return &verificationService{codeRepo: codeRepo, eventProducer: eventProducer, factory: factory}
 }
 
 func (v *verificationService) GenerateAuthCode(email string, expiration time.Duration) (string, error) {
@@ -26,19 +30,14 @@ func (v *verificationService) GenerateAuthCode(email string, expiration time.Dur
 		return "", err
 	}
 	// TODO 存储领域事件到事件表，并清空entity的事件
-	//for _, event := range codeObj.GetEvents() {
-	//	v.eventProducer.Publish("account:code", event)
-	//}
+	for _, event := range codeObj.GetEvents() {
+		if err := v.eventProducer.Publish("account", event); err != nil {
+			return "", err
+		}
+	}
 	return codeObj.Get(), nil
 }
 
 func (v *verificationService) GetAuthCode(email string) (string, error) {
 	return v.codeRepo.GetCode(email)
-}
-
-func NewVerificationService(codeRepo repository.CodeRepository, factory *entity.CodeFactory) VerificationService {
-	return &verificationService{
-		codeRepo: codeRepo,
-		factory:  factory,
-	}
 }

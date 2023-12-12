@@ -3,21 +3,26 @@ package main
 import (
 	"account/adapters/http/handler"
 	applicationService "account/application/service"
+	"account/config"
 	"account/domain/account/entity"
 	domainService "account/domain/account/service"
 	"account/infrastructure/repo"
-	"common/config"
+	kafkaEventManager "common/eventbus/kafka"
 	"common/logs"
 	"common/middleware"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"github.com/gin-contrib/sessions"
 	sessionRedis "github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
 	redis "github.com/go-redis/redis/v9"
+	"github.com/segmentio/kafka-go"
+	"github.com/segmentio/kafka-go/sasl/scram"
 	"github.com/sirupsen/logrus"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"log"
 	"time"
 )
 
@@ -91,8 +96,18 @@ func (hg *HttpServer) Run() {
 		logrus.Fatal(err.Error())
 	}
 
+	mechanism, err := scram.Mechanism(scram.SHA256, hg.config.KafkaUsername, hg.config.KafkaPassword)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	dialer := &kafka.Dialer{
+		SASLMechanism: mechanism,
+		TLS:           &tls.Config{},
+	}
+	eventProducer := kafkaEventManager.NewEventProducer(dialer, []string{hg.config.KafkaBroker})
+
 	accountService := domainService.NewAccountService(accountRepo, accountFactoryConfig)
-	verificationService := domainService.NewVerificationService(codeRepo, codeFactory)
+	verificationService := domainService.NewVerificationService(codeRepo, codeFactory, eventProducer)
 	applicationAccount := applicationService.NewApplicationAccount(accountService, verificationService)
 	handler.RegisterAccountRoutes(hg.engine, applicationAccount)
 
@@ -107,7 +122,7 @@ func (hg *HttpServer) Run() {
 func main() {
 	logs.Init()
 	// 读取配置
-	configs, err := config.LoadConfig("../common/config")
+	configs, err := config.LoadConfig("config")
 	if err != nil {
 		logrus.Fatal(err.Error())
 	}

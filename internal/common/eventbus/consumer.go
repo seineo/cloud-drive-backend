@@ -2,7 +2,7 @@ package eventbus
 
 import "time"
 
-type EventHandler func(eventData map[string]interface{})
+type EventHandler func(eventBytes []byte, eventData map[string]interface{})
 
 // Consumer 一个topic只有一个消费者的情况， 多个需要考虑并发（可以另开一个接口）
 type Consumer interface {

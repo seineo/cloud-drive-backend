@@ -1,2 +1,5 @@
 **/.idea
-/internal/common/config/app.yaml
+/internal/account/config/app.yaml
+**/*.env
+**/*.env.dev
+**/*.env.prod

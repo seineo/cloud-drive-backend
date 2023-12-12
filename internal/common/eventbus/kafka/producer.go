@@ -17,15 +17,18 @@ func (e *EventProducer) Publish(topic string, event eventbus.Event) error {
 		Brokers: e.brokers,
 		Topic:   topic,
 	})
+	defer w.Close()
 	ctx := context.Background()
 	eventBytes, err := event.Marshall()
 	if err != nil {
 		return err
 	}
-	w.WriteMessages(ctx, kafka.Message{
+	err = w.WriteMessages(ctx, kafka.Message{
 		Value: eventBytes,
 	})
-	w.Close()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
