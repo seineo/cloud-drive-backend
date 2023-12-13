@@ -33,8 +33,9 @@ func (c CodeGenerated) Marshall() ([]byte, error) {
 }
 
 func NewCodeGeneratedEvent(email string, code string) eventbus.Event {
+	eventBase := eventbus.NewEventBase("codeGenerated")
 	return CodeGenerated{
-		EventBase: eventbus.NewEventBase("codeGenerated"),
+		EventBase: eventBase,
 		Email:     email,
 		Code:      code,
 	}

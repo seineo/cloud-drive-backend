@@ -10,9 +10,11 @@ import (
 	kafkaEventManager "common/eventbus/kafka"
 	"common/logs"
 	"common/middleware"
+	"common/server"
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/bwmarrin/snowflake"
 	"github.com/gin-contrib/sessions"
 	sessionRedis "github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
@@ -23,6 +25,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"log"
+	"os"
 	"time"
 )
 
@@ -42,12 +45,13 @@ import (
 //}
 
 type HttpServer struct {
+	node   *snowflake.Node
 	config *config.Config
 	engine *gin.Engine
 }
 
-func NewHttpServer(configs *config.Config, engine *gin.Engine) *HttpServer {
-	return &HttpServer{config: configs, engine: engine}
+func NewHttpServer(node *snowflake.Node, configs *config.Config, engine *gin.Engine) *HttpServer {
+	return &HttpServer{node: node, config: configs, engine: engine}
 }
 
 func (hg *HttpServer) Run() {
@@ -126,8 +130,16 @@ func main() {
 	if err != nil {
 		logrus.Fatal(err.Error())
 	}
+	// 分布式id生成器
+	hostname, err := os.Hostname()
+	nodeID := server.Hostname2WorkerID(hostname)
+	logrus.Infof("hostname: %v, node id: %v\n", hostname, nodeID)
+	node, err := snowflake.NewNode(nodeID)
+	if err != nil {
+		logrus.Fatal(err.Error())
+	}
 	// 运行http服务器
 	engine := gin.Default()
-	server := NewHttpServer(configs, engine)
-	server.Run()
+	httpServer := NewHttpServer(node, configs, engine)
+	httpServer.Run()
 }

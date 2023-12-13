@@ -64,10 +64,9 @@ func (suite *KafkaSuite) codeHandler(eventBytes []byte, eventData map[string]int
 
 func (suite *KafkaSuite) TestCloseReader() {
 	producer := NewEventProducer(suite.dialer, []string{"factual-marmot-8450-us1-kafka.upstash.io:9092"})
-	err := producer.Publish("account", account.NewCodeGeneratedEvent("1@test.com", "123456"))
-	if err != nil {
-		suite.T().Errorf(err.Error())
-	}
+	codeGeneratedEvent := account.NewCodeGeneratedEvent("1@test.com", "123456")
+	err := producer.Publish("account", codeGeneratedEvent)
+	assert.NoError(suite.T(), err)
 
 	done := make(chan bool)
 

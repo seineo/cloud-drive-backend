@@ -27,6 +27,7 @@ func NewCodeFactory(digits uint, seed int64) (*CodeFactory, error) {
 	return &CodeFactory{digits: digits, r: rand.New(rand.NewSource(seed))}, nil
 }
 
+// NewVerificationCode 生成验证码，并添加codeGenerated领域事件
 func (cf *CodeFactory) NewVerificationCode(email string) *VerificationCode {
 	const digitBytes = "0123456789"
 	b := make([]byte, cf.digits)
@@ -40,7 +41,8 @@ func (cf *CodeFactory) NewVerificationCode(email string) *VerificationCode {
 		code:  string(b),
 	}
 	// 领域事件：验证码已生成
-	codeObj.AddEvent(account.NewCodeGeneratedEvent(email, codeObj.Get()))
+	codeGeneratedEvent := account.NewCodeGeneratedEvent(email, codeObj.Get())
+	codeObj.AddEvent(codeGeneratedEvent)
 	return codeObj
 }
 

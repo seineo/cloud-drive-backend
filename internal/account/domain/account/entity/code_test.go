@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"reflect"
 	"testing"
@@ -47,18 +48,24 @@ func TestCodeFactory_NewVerificationCode(t *testing.T) {
 				digits: tt.digits,
 				r:      tt.r2,
 			}
-			code1 := cf1.NewVerificationCode("1@test.com").Get()
-			code2 := cf2.NewVerificationCode("1@test.com").Get()
-			if tt.wantEqual && code1 != code2 {
+			codeObj1 := cf1.NewVerificationCode("1@test.com")
+			codeObj2 := cf2.NewVerificationCode("1@test.com")
+			if tt.wantEqual && codeObj1.Get() != codeObj2.Get() {
 				t.Errorf("code1 and code2 not equal")
 			}
-			if !tt.wantEqual && code1 == code2 {
+			if !tt.wantEqual && codeObj1.Get() == codeObj2.Get() {
 				t.Errorf("code1 and code2 should not be equal")
 			}
-			if uint(len(code1)) != tt.digits || uint(len(code2)) != tt.digits {
+			if uint(len(codeObj1.Get())) != tt.digits || uint(len(codeObj2.Get())) != tt.digits {
 				t.Errorf("code lenth expected: %v, actual: {code1: %v, code2: %v}",
-					tt.digits, len(code1), len(code2))
+					tt.digits, len(codeObj1.Get()), len(codeObj2.GetEvents()))
 			}
+			events1 := codeObj1.GetEvents()
+			assert.Equal(t, "codeGenerated", events1[len(events1)-1].GetName())
+			events2 := codeObj2.GetEvents()
+			assert.Equal(t, "codeGenerated", events2[len(events2)-1].GetName())
+			// 判断id不同
+			assert.NotEqual(t, events1[len(events1)-1].GetID(), events2[len(events2)-1].GetID())
 		})
 	}
 }

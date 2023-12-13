@@ -19,7 +19,7 @@ type verificationService struct {
 }
 
 func NewVerificationService(codeRepo repository.CodeRepository, factory *entity.CodeFactory, eventProducer eventbus.Producer) VerificationService {
-	return &verificationService{codeRepo: codeRepo, eventProducer: eventProducer, factory: factory}
+	return &verificationService{codeRepo: codeRepo, factory: factory, eventProducer: eventProducer}
 }
 
 func (v *verificationService) GenerateAuthCode(email string, expiration time.Duration) (string, error) {

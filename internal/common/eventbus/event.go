@@ -1,17 +1,15 @@
 package eventbus
 
-import "time"
+import (
+	"common/server"
+	"time"
+)
 
 type Event interface {
 	GetID() int64
 	GetName() string
 	GetOccurTime() time.Time
 	Marshall() ([]byte, error)
-}
-
-type EventStore interface {
-	StoreEvent(event Event) error
-	GetEvent(eventID int64) (Event, error)
 }
 
 type EventBase struct {
@@ -22,7 +20,7 @@ type EventBase struct {
 
 func NewEventBase(eventName string) EventBase {
 	return EventBase{
-		EventID:   0,
+		EventID:   server.GenerateID(),
 		EventName: eventName,
 		OccurTime: time.Now(),
 	}
