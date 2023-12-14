@@ -57,7 +57,7 @@ func (suite *MySQLEventSuite) AfterTest(suiteName, testName string) {
 	assert.NoError(suite.T(), err)
 }
 
-func TestAccountSuite(t *testing.T) {
+func TestEventStoreSuite(t *testing.T) {
 	suite.Run(t, new(MySQLEventSuite))
 }
 
