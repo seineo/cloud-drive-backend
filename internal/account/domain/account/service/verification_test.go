@@ -4,7 +4,6 @@ import (
 	"account/domain/account/entity"
 	"account/domain/account/repository"
 	"common/eventbus"
-	"errors"
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
@@ -26,12 +25,13 @@ func Test_verificationService_GenerateAuthCode(t *testing.T) {
 		expiration time.Duration
 	}
 	tests := []struct {
-		name             string
-		args             args
-		targetSetCodeErr error
-		targetPublishErr error
-		want             string
-		wantErr          bool
+		name                string
+		args                args
+		targetSetCodeErr    error
+		targetPublishErr    error
+		targetEventStoreErr error
+		want                string
+		wantErr             bool
 	}{
 		{
 			name:             "normal case",
@@ -50,25 +50,26 @@ func Test_verificationService_GenerateAuthCode(t *testing.T) {
 			wantErr:          true,
 		},
 		{
-			name:             "producer error",
-			args:             args{email: "123@test.com", expiration: 10 * time.Minute},
-			targetSetCodeErr: nil,
-			targetPublishErr: errors.New("producer error"),
-			want:             "",
-			wantErr:          true,
+			name:                "eventStore error",
+			args:                args{email: "123@test.com", expiration: 10 * time.Minute},
+			targetSetCodeErr:    nil,
+			targetPublishErr:    nil,
+			targetEventStoreErr: fmt.Errorf("eventStore error"),
+			want:                "",
+			wantErr:             true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockRepo := repository.NewMockCodeRepository(ctrl)
-			mockProducer := eventbus.NewMockProducer(ctrl)
+			mockEventStore := eventbus.NewMockEventStore(ctrl)
 			v := &verificationService{
-				codeRepo:      mockRepo,
-				factory:       actualFactory,
-				eventProducer: mockProducer,
+				codeRepo:   mockRepo,
+				factory:    actualFactory,
+				eventStore: mockEventStore,
 			}
-			mockRepo.EXPECT().SetCode(gomock.Any(), gomock.Any(), gomock.Any()).Return(tt.targetSetCodeErr)
-			mockProducer.EXPECT().Publish("account", gomock.Any()).Return(tt.targetPublishErr).AnyTimes()
+			mockEventStore.EXPECT().StoreEvent(gomock.Any()).Return(tt.targetEventStoreErr)
+			mockRepo.EXPECT().SetCode(gomock.Any(), gomock.Any(), gomock.Any()).Return(tt.targetSetCodeErr).AnyTimes()
 			got, err := v.GenerateAuthCode(tt.args.email, tt.args.expiration)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GenerateAuthCode() error = %v, wantErr %v", err, tt.wantErr)

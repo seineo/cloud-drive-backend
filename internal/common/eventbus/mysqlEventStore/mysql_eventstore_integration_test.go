@@ -1,4 +1,4 @@
-package mysql
+package mysqlEventStore
 
 import (
 	"common/dao"
@@ -27,7 +27,8 @@ func (suite *MySQLEventSuite) SetupSuite() {
 	db, err := dao.InitMySQLConn("root:TestPassword123.@tcp(localhost:3306)/cloud_drive?parseTime=true")
 	assert.NoError(suite.T(), err)
 	suite.db = db
-	suite.store = NewMySQLEventStore(db)
+	suite.store, err = NewMySQLEventStore(db)
+	assert.NoError(suite.T(), err)
 }
 
 func (suite *MySQLEventSuite) TearDownSuite() {
@@ -45,7 +46,7 @@ func (suite *MySQLEventSuite) BeforeTest(suiteName, testName string) {
 		jsonEvent, err := event.Marshall()
 		assert.NoError(suite.T(), err)
 		err = suite.db.Exec("insert into events (id, status, value) values (?, ?, ?)",
-			event.GetID(), eventbus.EventUnprocessed, string(jsonEvent)).Error
+			event.GetID(), eventbus.EventUnconsumed, string(jsonEvent)).Error
 		assert.NoError(suite.T(), err)
 	}
 }
@@ -65,15 +66,15 @@ func (suite *MySQLEventSuite) TestStoreEvent() {
 	assert.NoError(suite.T(), err)
 }
 
-func (suite *MySQLEventSuite) TestSetEventProcessed() {
+func (suite *MySQLEventSuite) TestSetEventConsumed() {
 	// 获取initialEvents[0]，并修改其状态
 	initialEvent := initialEvents[0]
-	err := suite.store.SetEventProcessed(initialEvent.GetID())
+	err := suite.store.SetEventConsumed(initialEvent.GetID())
 	assert.NoError(suite.T(), err)
 }
 
-func (suite *MySQLEventSuite) TestGetUnprocessedEvents() {
-	events, err := suite.store.GetUnprocessedEvents()
+func (suite *MySQLEventSuite) TestGetUnconsumedEvents() {
+	events, err := suite.store.GetUnconsumedEvents()
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), 2, len(events))
 	for i, event := range events {

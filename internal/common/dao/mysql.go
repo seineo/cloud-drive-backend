@@ -10,12 +10,12 @@ import (
 func InitMySQLConn(dsn string) (*gorm.DB, error) {
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to init mysql connection: %w", err)
+		return nil, fmt.Errorf("failed to init mysqlEventStore connection: %w", err)
 	}
 	return db, nil
 }
 
-// CloseMySQLConn closes the connection to mysql, and it can be used in integration tests.
+// CloseMySQLConn closes the connection to mysqlEventStore, and it can be used in integration tests.
 func CloseMySQLConn(db *gorm.DB) error {
 	dbInstance, err := db.DB()
 	if err != nil {

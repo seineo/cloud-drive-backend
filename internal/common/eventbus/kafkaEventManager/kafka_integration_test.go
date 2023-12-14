@@ -1,4 +1,4 @@
-package kafka
+package kafkaEventManager
 
 import (
 	"common/eventbus/account"
@@ -65,7 +65,9 @@ func (suite *KafkaSuite) codeHandler(eventBytes []byte, eventData map[string]int
 func (suite *KafkaSuite) TestCloseReader() {
 	producer := NewEventProducer(suite.dialer, []string{"factual-marmot-8450-us1-kafka.upstash.io:9092"})
 	codeGeneratedEvent := account.NewCodeGeneratedEvent("1@test.com", "123456")
-	err := producer.Publish("account", codeGeneratedEvent)
+	eventBytes, err := codeGeneratedEvent.Marshall()
+	assert.NoError(suite.T(), err)
+	err = producer.Publish("account", eventBytes)
 	assert.NoError(suite.T(), err)
 
 	done := make(chan bool)
@@ -95,15 +97,15 @@ func (suite *KafkaSuite) TestCloseReader() {
 
 //
 //func (suite *KafkaSuite) TestTimeout() {
-//	producer := NewEventProducer(suite.dialer, []string{"factual-marmot-8450-us1-kafka.upstash.io:9092"})
-//	err := producer.Publish("account", account.NewCodeGeneratedEvent("1@test.com", "123456"))
+//	producer := NewEventProducer(suite.dialer, []string{"factual-marmot-8450-us1-kafkaEventManager.upstash.io:9092"})
+//	err := producer.PublishEvents("account", account.NewCodeGeneratedEvent("1@test.com", "123456"))
 //	if err != nil {
 //		suite.T().Errorf(err.Error())
 //	}
 //
 //	done := make(chan bool)
 //
-//	consumer := NewEventConsumer(suite.dialer, []string{"factual-marmot-8450-us1-kafka.upstash.io:9092"})
+//	consumer := NewEventConsumer(suite.dialer, []string{"factual-marmot-8450-us1-kafkaEventManager.upstash.io:9092"})
 //
 //	consumer.Subscribe("account", suite.codeHandler)
 //	// 开始消费

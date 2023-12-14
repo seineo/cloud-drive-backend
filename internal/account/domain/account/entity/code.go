@@ -9,9 +9,9 @@ import (
 )
 
 type VerificationCode struct {
-	email  string
-	code   string
-	events []eventbus.Event
+	email string
+	code  string
+	event eventbus.Event
 }
 
 type CodeFactory struct {
@@ -42,7 +42,7 @@ func (cf *CodeFactory) NewVerificationCode(email string) *VerificationCode {
 	}
 	// 领域事件：验证码已生成
 	codeGeneratedEvent := account.NewCodeGeneratedEvent(email, codeObj.Get())
-	codeObj.AddEvent(codeGeneratedEvent)
+	codeObj.SetEvent(codeGeneratedEvent)
 	return codeObj
 }
 
@@ -50,14 +50,14 @@ func (v *VerificationCode) Get() string {
 	return v.code
 }
 
-func (v *VerificationCode) AddEvent(event eventbus.Event) {
-	v.events = append(v.events, event)
+func (v *VerificationCode) SetEvent(event eventbus.Event) {
+	v.event = event
 }
 
-func (v *VerificationCode) GetEvents() []eventbus.Event {
-	return v.events
+func (v *VerificationCode) GetEvent() eventbus.Event {
+	return v.event
 }
 
-func (v *VerificationCode) ClearEvents() {
-	v.events = []eventbus.Event{}
+func (v *VerificationCode) ClearEvent() {
+	v.event = nil
 }

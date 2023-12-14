@@ -1,4 +1,4 @@
-package kafka
+package kafkaEventManager
 
 import (
 	"common/eventbus"
@@ -11,7 +11,7 @@ type EventProducer struct {
 	brokers []string
 }
 
-func (e *EventProducer) Publish(topic string, event eventbus.Event) error {
+func (e *EventProducer) Publish(topic string, eventBytes []byte) error {
 	w := kafka.NewWriter(kafka.WriterConfig{
 		Dialer:  e.dialer,
 		Brokers: e.brokers,
@@ -19,11 +19,7 @@ func (e *EventProducer) Publish(topic string, event eventbus.Event) error {
 	})
 	defer w.Close()
 	ctx := context.Background()
-	eventBytes, err := event.Marshall()
-	if err != nil {
-		return err
-	}
-	err = w.WriteMessages(ctx, kafka.Message{
+	err := w.WriteMessages(ctx, kafka.Message{
 		Value: eventBytes,
 	})
 	if err != nil {

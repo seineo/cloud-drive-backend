@@ -1,4 +1,4 @@
-package kafka
+package kafkaEventManager
 
 import (
 	"common/eventbus"

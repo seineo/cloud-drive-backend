@@ -38,15 +38,15 @@ func (m *MockProducer) EXPECT() *MockProducerMockRecorder {
 }
 
 // Publish mocks base method.
-func (m *MockProducer) Publish(topic string, event Event) error {
+func (m *MockProducer) Publish(topic string, eventBytes []byte) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Publish", topic, event)
+	ret := m.ctrl.Call(m, "PublishEvents", topic, eventBytes)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Publish indicates an expected call of Publish.
-func (mr *MockProducerMockRecorder) Publish(topic, event any) *gomock.Call {
+func (mr *MockProducerMockRecorder) Publish(topic, eventBytes any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Publish", reflect.TypeOf((*MockProducer)(nil).Publish), topic, event)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PublishEvents", reflect.TypeOf((*MockProducer)(nil).Publish), topic, eventBytes)
 }

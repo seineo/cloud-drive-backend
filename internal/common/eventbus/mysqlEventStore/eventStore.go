@@ -1,4 +1,4 @@
-package mysql
+package mysqlEventStore
 
 import (
 	"common/eventbus"
@@ -9,8 +9,14 @@ type EventStore struct {
 	db *gorm.DB
 }
 
-func NewMySQLEventStore(db *gorm.DB) eventbus.EventStore {
-	return &EventStore{db: db}
+func NewMySQLEventStore(db *gorm.DB) (eventbus.EventStore, error) {
+	if db == nil {
+		panic("missing db")
+	}
+	if err := db.AutoMigrate(Event{}); err != nil {
+		return nil, err
+	}
+	return &EventStore{db: db}, nil
 }
 
 type Event struct {
@@ -39,7 +45,7 @@ func (m *EventStore) StoreEvent(event eventbus.Event) error {
 	}
 	err = m.db.Create(&Event{
 		ID:     event.GetID(),
-		Status: eventbus.EventUnprocessed,
+		Status: eventbus.EventUnconsumed,
 		Value:  string(eventBytes),
 	}).Error
 	if err != nil {
@@ -48,17 +54,17 @@ func (m *EventStore) StoreEvent(event eventbus.Event) error {
 	return nil
 }
 
-func (m *EventStore) SetEventProcessed(eventID int64) error {
-	err := m.db.Model(&Event{}).Where("id = ?", eventID).Update("status", eventbus.EventProcessed).Error
+func (m *EventStore) SetEventConsumed(eventID int64) error {
+	err := m.db.Model(&Event{}).Where("id = ?", eventID).Update("status", eventbus.EventConsumed).Error
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m *EventStore) GetUnprocessedEvents() ([]string, error) {
+func (m *EventStore) GetUnconsumedEvents() ([]string, error) {
 	var events []Event
-	if err := m.db.Where("status = ?", eventbus.EventUnprocessed).Find(&events).Error; err != nil {
+	if err := m.db.Where("status = ?", eventbus.EventUnconsumed).Find(&events).Error; err != nil {
 		return nil, err
 	}
 	return toStrings(events), nil

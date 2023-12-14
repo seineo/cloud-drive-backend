@@ -13,27 +13,30 @@ type VerificationService interface {
 }
 
 type verificationService struct {
-	codeRepo      repository.CodeRepository
-	factory       *entity.CodeFactory // 验证码工厂中有mutex锁，需要用指针传递
-	eventProducer eventbus.Producer
+	codeRepo   repository.CodeRepository
+	factory    *entity.CodeFactory // 验证码工厂中有mutex锁，需要用指针传递
+	eventStore eventbus.EventStore
 }
 
-func NewVerificationService(codeRepo repository.CodeRepository, factory *entity.CodeFactory, eventProducer eventbus.Producer) VerificationService {
-	return &verificationService{codeRepo: codeRepo, factory: factory, eventProducer: eventProducer}
+func NewVerificationService(codeRepo repository.CodeRepository, factory *entity.CodeFactory,
+	eventStore eventbus.EventStore) VerificationService {
+	return &verificationService{codeRepo: codeRepo, factory: factory, eventStore: eventStore}
 }
 
+// GenerateAuthCode 生成验证码，并存储，以及发布领域事件。 （需要事务）
 func (v *verificationService) GenerateAuthCode(email string, expiration time.Duration) (string, error) {
 	// 生成code
 	codeObj := v.factory.NewVerificationCode(email)
-	// 存储code
-	if err := v.codeRepo.SetCode(email, codeObj.Get(), expiration); err != nil {
+
+	// 存储领域事件，而后清空entity的事件
+	event := codeObj.GetEvent()
+	if err := v.eventStore.StoreEvent(event); err != nil {
 		return "", err
 	}
-	// TODO 存储领域事件到事件表，并清空entity的事件
-	for _, event := range codeObj.GetEvents() {
-		if err := v.eventProducer.Publish("account", event); err != nil {
-			return "", err
-		}
+	codeObj.ClearEvent()
+	// 存储code  （如果是redis这不同的数据库，则需要放在最后，方便回滚，否则需要额外的补偿操作）
+	if err := v.codeRepo.SetCode(email, codeObj.Get(), expiration); err != nil {
+		return "", err
 	}
 	return codeObj.Get(), nil
 }

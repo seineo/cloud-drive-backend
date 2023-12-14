@@ -2,56 +2,40 @@ package main
 
 import (
 	"account/adapters/http/handler"
+	"account/application"
 	applicationService "account/application/service"
 	"account/config"
 	"account/domain/account/entity"
 	domainService "account/domain/account/service"
 	"account/infrastructure/repo"
-	kafkaEventManager "common/eventbus/kafka"
+	"common/eventbus/kafkaEventManager"
+	"common/eventbus/mysqlEventStore"
 	"common/logs"
 	"common/middleware"
-	"common/server"
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/bwmarrin/snowflake"
 	"github.com/gin-contrib/sessions"
 	sessionRedis "github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
 	redis "github.com/go-redis/redis/v9"
+	"github.com/robfig/cron/v3"
 	"github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl/scram"
 	"github.com/sirupsen/logrus"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"log"
-	"os"
 	"time"
 )
 
-//
-//func init() {
-//	log = config.GetLogger()
-//	configs := config.LoadConfig([]string{"config"})
-//	// create file storage directories if they don't exist
-//	err := os.MkdirAll(configs.Local.StoragePath, 0750)
-//	if err != nil {
-//		log.Fatal("failed to create file storage directory")
-//	}
-//	err = os.MkdirAll(configs.Local.TempStoragePath, 0750)
-//	if err != nil {
-//		log.Fatal("failed to create temporal file storage directory")
-//	}
-//}
-
 type HttpServer struct {
-	node   *snowflake.Node
 	config *config.Config
 	engine *gin.Engine
 }
 
-func NewHttpServer(node *snowflake.Node, configs *config.Config, engine *gin.Engine) *HttpServer {
-	return &HttpServer{node: node, config: configs, engine: engine}
+func NewHttpServer(configs *config.Config, engine *gin.Engine) *HttpServer {
+	return &HttpServer{config: configs, engine: engine}
 }
 
 func (hg *HttpServer) Run() {
@@ -73,7 +57,7 @@ func (hg *HttpServer) Run() {
 
 	mysqlDB, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
-		logrus.WithError(err).Fatal("fail to connect mysql database")
+		logrus.WithError(err).Fatal("fail to connect mysqlEventStore database")
 	}
 
 	// account 依赖注入
@@ -99,7 +83,7 @@ func (hg *HttpServer) Run() {
 	if err != nil {
 		logrus.Fatal(err.Error())
 	}
-
+	// kafka注入
 	mechanism, err := scram.Mechanism(scram.SHA256, hg.config.KafkaUsername, hg.config.KafkaPassword)
 	if err != nil {
 		log.Fatalln(err)
@@ -110,15 +94,27 @@ func (hg *HttpServer) Run() {
 	}
 	eventProducer := kafkaEventManager.NewEventProducer(dialer, []string{hg.config.KafkaBroker})
 
+	// 事件存储注入（虽然scheme是统一的，但是每个服务应当有自己的存储）
+	eventStore, err := mysqlEventStore.NewMySQLEventStore(mysqlDB)
+	if err != nil {
+		logrus.WithError(err).Fatal("unable to set up event store")
+	}
+
 	accountService := domainService.NewAccountService(accountRepo, accountFactoryConfig)
-	verificationService := domainService.NewVerificationService(codeRepo, codeFactory, eventProducer)
+	verificationService := domainService.NewVerificationService(codeRepo, codeFactory, eventStore)
 	applicationAccount := applicationService.NewApplicationAccount(accountService, verificationService)
 	handler.RegisterAccountRoutes(hg.engine, applicationAccount)
 
-	// 运行
+	// 运行定时任务
+	cronEventManager := application.NewCronEventManager(eventProducer, eventStore)
+	c := cron.New()
+	c.AddFunc("@every 5s", cronEventManager.PublishEvents)
+	c.Start()
+
+	//运行http服务器
 	err = hg.engine.Run()
 	if err != nil {
-		logrus.WithError(err).Fatal("failed to run handler server")
+		logrus.WithError(err).Fatal("unable to run handler server")
 	}
 
 }
@@ -130,16 +126,8 @@ func main() {
 	if err != nil {
 		logrus.Fatal(err.Error())
 	}
-	// 分布式id生成器
-	hostname, err := os.Hostname()
-	nodeID := server.Hostname2WorkerID(hostname)
-	logrus.Infof("hostname: %v, node id: %v\n", hostname, nodeID)
-	node, err := snowflake.NewNode(nodeID)
-	if err != nil {
-		logrus.Fatal(err.Error())
-	}
 	// 运行http服务器
 	engine := gin.Default()
-	httpServer := NewHttpServer(node, configs, engine)
+	httpServer := NewHttpServer(configs, engine)
 	httpServer.Run()
 }

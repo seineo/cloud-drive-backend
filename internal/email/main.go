@@ -1,7 +1,7 @@
 package main
 
 import (
-	kafkaEventManager "common/eventbus/kafka"
+	kafkaEventManager "common/eventbus/kafkaEventManager"
 	"common/logs"
 	"crypto/tls"
 	"email/application"
@@ -27,7 +27,7 @@ func main() {
 	emailSender := infrastructure.NewGoMailer(mailDialer)
 
 	emailService := service.NewEmailService(map[string]string{"code": configs.SMTPSender}, emailSender, configs)
-	// kafka
+	// kafkaEventManager
 	mechanism, err := scram.Mechanism(scram.SHA256, configs.KafkaUsername, configs.KafkaPassword)
 	if err != nil {
 		log.Fatalln(err)

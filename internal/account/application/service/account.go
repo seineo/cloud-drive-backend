@@ -27,6 +27,7 @@ type applicationAccount struct {
 }
 
 func (a *applicationAccount) SendVerificationCode(user types.AccountCodeRequest) (string, error) {
+	// TODO mysqlEventStore 事务
 	return a.verificationService.GenerateAuthCode(user.Email, 15*time.Minute)
 }
 

@@ -58,14 +58,14 @@ func TestCodeFactory_NewVerificationCode(t *testing.T) {
 			}
 			if uint(len(codeObj1.Get())) != tt.digits || uint(len(codeObj2.Get())) != tt.digits {
 				t.Errorf("code lenth expected: %v, actual: {code1: %v, code2: %v}",
-					tt.digits, len(codeObj1.Get()), len(codeObj2.GetEvents()))
+					tt.digits, len(codeObj1.Get()), len(codeObj2.Get()))
 			}
-			events1 := codeObj1.GetEvents()
-			assert.Equal(t, "codeGenerated", events1[len(events1)-1].GetName())
-			events2 := codeObj2.GetEvents()
-			assert.Equal(t, "codeGenerated", events2[len(events2)-1].GetName())
+			event1 := codeObj1.GetEvent()
+			assert.Equal(t, "codeGenerated", event1.GetName())
+			event2 := codeObj2.GetEvent()
+			assert.Equal(t, "codeGenerated", event2.GetName())
 			// 判断id不同
-			assert.NotEqual(t, events1[len(events1)-1].GetID(), events2[len(events2)-1].GetID())
+			assert.NotEqual(t, event1.GetID(), event2.GetID())
 		})
 	}
 }
