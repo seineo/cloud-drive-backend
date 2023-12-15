@@ -16,6 +16,11 @@ type Config struct {
 	KafkaBroker   string `mapstructure:"KAFKA_BROKER"`
 	KafkaUsername string `mapstructure:"KAFKA_USERNAME"`
 	KafkaPassword string `mapstructure:"KAFKA_PASSWORD"`
+	DBAddr        string `mapstructure:"DB_ADDR"`
+	DBUser        string `mapstructure:"DB_USER"`
+	DBPassword    string `mapstructure:"DB_PASSWORD"`
+	DBProtocol    string `mapstructure:"DB_PROTOCOL"`
+	DBDatabase    string `mapstructure:"DB_DATABASE"`
 }
 
 func LoadConfig(path string) (*Config, error) {

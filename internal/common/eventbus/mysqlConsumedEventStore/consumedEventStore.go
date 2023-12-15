@@ -2,6 +2,7 @@ package mysqlConsumedEventStore
 
 import (
 	"common/eventbus"
+	"fmt"
 	"gorm.io/gorm"
 )
 
@@ -29,6 +30,10 @@ func (c *ConsumedEventStore) StoreConsumedEvent(event eventbus.ConsumedEvent) er
 func NewConsumedEventStore(db *gorm.DB) (eventbus.ConsumedEventStore, error) {
 	if db == nil {
 		panic("missing db")
+	}
+	err := db.AutoMigrate(&MySQLConsumedEvent{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to migrate account model: %w", err)
 	}
 	return &ConsumedEventStore{db: db}, nil
 }

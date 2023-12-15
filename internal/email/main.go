@@ -1,17 +1,20 @@
 package main
 
 import (
-	kafkaEventManager "common/eventbus/kafkaEventManager"
+	"common/eventbus/kafkaEventManager"
 	"common/logs"
 	"crypto/tls"
 	"email/application"
 	"email/config"
 	"email/domain/service"
 	"email/infrastructure"
+	"fmt"
 	"github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl/scram"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/gomail.v2"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 	"log"
 )
 
@@ -38,6 +41,19 @@ func main() {
 	}
 
 	consumer := kafkaEventManager.NewEventConsumer(dialer, []string{configs.KafkaBroker})
-	as := application.NewApplicationEmail(emailService, consumer)
+	producer := kafkaEventManager.NewEventProducer(dialer, []string{configs.KafkaBroker})
+
+	// mysql
+	dsn := fmt.Sprintf("%s:%s@%s(%s)/%s?parseTime=true",
+		configs.DBUser, configs.DBPassword, configs.DBProtocol, configs.DBAddr, configs.DBDatabase)
+	logrus.WithFields(logrus.Fields{
+		"dsn": dsn,
+	}).Debug(" dsn")
+
+	mysqlDB, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	if err != nil {
+		logrus.WithError(err).Fatal("unable to connect mysqlEventStore database")
+	}
+	as := application.NewApplicationEmail(emailService, consumer, producer, mysqlDB)
 	as.Run()
 }

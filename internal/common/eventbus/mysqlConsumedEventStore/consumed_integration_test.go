@@ -3,6 +3,7 @@ package mysqlConsumedEventStore
 import (
 	"common/dao"
 	"common/eventbus"
+	"github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"gorm.io/gorm"
@@ -57,12 +58,13 @@ func TestConsumedEventStoreSuite(t *testing.T) {
 	suite.Run(t, new(ConsumedEventSuite))
 }
 
-func (suite *ConsumedEventSuite) TestStoreConsumedEvent() {
+func (suite *ConsumedEventSuite) TestStoreConsumingEvent() {
 	err := suite.store.StoreConsumedEvent(*eventbus.NewConsumedEvent(3, "test3"))
 	assert.NoError(suite.T(), err)
 	// 重复id
 	err = suite.store.StoreConsumedEvent(*eventbus.NewConsumedEvent(1, "test4"))
-	assert.Error(suite.T(), err)
+	mysqlErr := err.(*mysql.MySQLError)
+	assert.Equal(suite.T(), mysqlErr.Number, uint16(1062))
 	// 重复value
 	err = suite.store.StoreConsumedEvent(*eventbus.NewConsumedEvent(5, "test3"))
 	assert.NoError(suite.T(), err)

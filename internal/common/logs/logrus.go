@@ -6,7 +6,7 @@ import (
 )
 
 func Init() {
-	logrus.SetReportCaller(true)
+	//logrus.SetReportCaller(true)
 	logrus.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp:   true,
 		TimestampFormat: "2006-01-02 15:04:05", // golang std format has to use this datetime

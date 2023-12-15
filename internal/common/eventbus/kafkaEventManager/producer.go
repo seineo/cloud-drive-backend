@@ -4,6 +4,7 @@ import (
 	"common/eventbus"
 	"context"
 	"github.com/segmentio/kafka-go"
+	"github.com/sirupsen/logrus"
 )
 
 type EventProducer struct {
@@ -22,9 +23,15 @@ func (e *EventProducer) Publish(topic string, eventBytes []byte) error {
 	err := w.WriteMessages(ctx, kafka.Message{
 		Value: eventBytes,
 	})
+	//conn, err := kafka.DialLeader(context.Background(), "tcp", "factual-marmot-8450-us1-kafka.upstash.io:9092", topic, 0)
+	//if err != nil {
+	//	return err
+	//}
+	//_, err = conn.WriteMessages(kafka.Message{Value: eventBytes})
 	if err != nil {
 		return err
 	}
+	logrus.Infof("publish event: %v", string(eventBytes))
 	return nil
 }
 
