@@ -34,7 +34,7 @@ func (hg *HttpServer) Run() {
 		logrus.WithError(err).Fatal("fail to connect redis for middleware sessions")
 	}
 	// 设置全局中间件
-	hg.engine.Use(sessions.Sessions("session_id", store), middleware.LoggingMiddleware())
+	hg.engine.Use(middleware.CORSMiddleware(), sessions.Sessions("session_id", store), middleware.LoggingMiddleware())
 
 	// 设置mysql
 	dsn := fmt.Sprintf("%s:%s@%s(%s)/%s?parseTime=true",

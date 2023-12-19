@@ -2,7 +2,6 @@ package entity
 
 import (
 	"common/validation"
-	"errors"
 	"fmt"
 	"github.com/alexedwards/argon2id"
 )
@@ -26,10 +25,10 @@ type AccountFactory struct {
 func (fc *AccountFactoryConfig) validateConfig() error {
 	var err error
 	if len(fc.NicknameRegex) == 0 {
-		err = errors.Join(err, fmt.Errorf("regex for nickname should not be empty"))
+		err = fmt.Errorf("regex for nickname should not be empty")
 	}
 	if len(fc.PasswordRegex) == 0 {
-		err = errors.Join(err, fmt.Errorf("regex for password should not be empty"))
+		err = fmt.Errorf("regex for password should not be empty")
 	}
 	return err
 }
@@ -42,20 +41,19 @@ func NewAccountFactory(fc AccountFactoryConfig) (*AccountFactory, error) {
 }
 
 func (f *AccountFactory) validate(email string, nickname string, password string) error {
-	var err error
 	mailErr := validation.CheckEmail(email)
 	if mailErr != nil {
-		err = errors.Join(err, mailErr)
+		return mailErr
 	}
 	nicknameErr := validation.CheckRegexMatch(f.fc.NicknameRegex, nickname)
 	if nicknameErr != nil {
-		err = errors.Join(err, nicknameErr)
+		return nicknameErr
 	}
 	passwordErr := validation.CheckRegexMatch(f.fc.PasswordRegex, password)
 	if passwordErr != nil {
-		err = errors.Join(err, passwordErr)
+		return passwordErr
 	}
-	return err
+	return nil
 }
 
 func (f *AccountFactory) NewAccount(email string, nickname string, password string) (*Account, error) {
