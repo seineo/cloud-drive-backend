@@ -118,6 +118,7 @@ func (svc *accountService) ChangePassword(accountID uint, newPassword string) er
 }
 
 func (svc *accountService) DeleteAccount(accountID uint) error {
+	// TODO 发送事件，删除数据库中policy、resource等数据
 	return svc.accountRepo.Delete(accountID)
 }
 
