@@ -17,19 +17,18 @@ import (
 	"github.com/sirupsen/logrus"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"log"
 )
 
 func CronPublishEvents(configs *config.Config) {
 	// kafka注入
 	var dialer *kafka.Dialer
 	if configs.KafkaUsername == "" {
-		log.Println("use plain mechanism here")
+		logrus.Info("use plain mechanism here")
 		dialer = &kafka.Dialer{}
 	} else {
 		mechanism, err := scram.Mechanism(scram.SHA256, configs.KafkaUsername, configs.KafkaPassword)
 		if err != nil {
-			log.Fatalln(err)
+			logrus.Fatalln(err)
 		}
 		dialer = &kafka.Dialer{
 			SASLMechanism: mechanism,
