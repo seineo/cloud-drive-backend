@@ -9,7 +9,7 @@ resources:
 pool: "Azure Pipelines"
 
 variables:
-  image-repo: 'seineo/only-account'
+  image-repo: 'bupt2018/only-account'
 
 stages:
   - stage: BuildAndPush
