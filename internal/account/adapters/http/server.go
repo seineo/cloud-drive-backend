@@ -27,6 +27,7 @@ func NewHttpServer(configs *config.Config, engine *gin.Engine) *HttpServer {
 }
 
 func (hg *HttpServer) Run() {
+	logrus.Infof("redis address: %s", hg.config.RedisAddr)
 	// 设置session中间件
 	store, err := sessionRedis.NewStore(hg.config.RedisIdleConn, hg.config.RedisNetwork,
 		hg.config.RedisAddr, hg.config.RedisPassword, []byte(hg.config.RedisKey))
