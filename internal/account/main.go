@@ -22,13 +22,19 @@ import (
 
 func CronPublishEvents(configs *config.Config) {
 	// kafka注入
-	mechanism, err := scram.Mechanism(scram.SHA256, configs.KafkaUsername, configs.KafkaPassword)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	dialer := &kafka.Dialer{
-		SASLMechanism: mechanism,
-		TLS:           &tls.Config{},
+	var dialer *kafka.Dialer
+	if configs.KafkaUsername == "" {
+		log.Println("use plain mechanism here")
+		dialer = &kafka.Dialer{}
+	} else {
+		mechanism, err := scram.Mechanism(scram.SHA256, configs.KafkaUsername, configs.KafkaPassword)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		dialer = &kafka.Dialer{
+			SASLMechanism: mechanism,
+			TLS:           &tls.Config{},
+		}
 	}
 	// mysql
 	dsn := fmt.Sprintf("%s:%s@%s(%s)/%s?parseTime=true",
