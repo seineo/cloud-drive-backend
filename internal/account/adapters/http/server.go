@@ -56,8 +56,8 @@ func (hg *HttpServer) Run() {
 	}
 	// code 依赖注入
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "",
+		Addr:     hg.config.RedisAddr,
+		Password: hg.config.RedisPassword,
 		DB:       0,
 	})
 	codeFactory, err := entity.NewCodeFactory(5, time.Now().UnixNano())
