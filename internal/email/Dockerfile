@@ -9,8 +9,7 @@ WORKDIR /app
 COPY . /app/
 
 # 执行代码编译命令。操作系统参数为linux，编译后的二进制产物命名为main，并存放在当前目录下。
-RUN  cd /app/internal/email && \
-     go env -w GOPROXY=https://goproxy.cn,direct && go build -o main .
+RUN  cd /app/internal/email && go build -o main .
 
 #RUN go env -w GO111MODULE=on && go env -w GOPROXY=https://goproxy.cn,direct && GOOS=linux go build -o main .
 
@@ -22,8 +21,6 @@ WORKDIR /app
 
 COPY --from=builder /app/internal/email/main  /app/
 
-COPY --from=builder /app/internal/email/  /app/
-
-RUN cd /app/config && ls -a
+#COPY --from=builder /app/internal/email/  /app/
 
 CMD ["/app/main"]
