@@ -23,7 +23,7 @@ RUN mkdir -p /app/config
 
 COPY --from=builder /app/internal/account/main  /app/
 
-COPY --from=builder /app/internal/account/config/app.env  /app/config/
+#COPY --from=builder /app/internal/account/config/app.env  /app/config/
 
 EXPOSE 8080
 
