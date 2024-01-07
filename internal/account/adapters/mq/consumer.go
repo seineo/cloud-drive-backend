@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/segmentio/kafka-go"
+	"github.com/segmentio/kafka-go/sasl/plain"
 	"github.com/segmentio/kafka-go/sasl/scram"
 	"github.com/sirupsen/logrus"
 	"gorm.io/driver/mysql"
@@ -25,14 +26,23 @@ type MQConsumer struct { // 作为发布方，接受消费方的回应消息
 
 func NewMQConsumer(configs *config.Config) *MQConsumer {
 	// kafka注入
-	mechanism, err := scram.Mechanism(scram.SHA256, configs.KafkaUsername, configs.KafkaPassword)
-	if err != nil {
-		log.Fatalln(err)
+	var dialer *kafka.Dialer
+	if configs.KafkaUsername == "" {
+		mechanism := plain.Mechanism{}
+		dialer = &kafka.Dialer{
+			SASLMechanism: mechanism,
+		}
+	} else {
+		mechanism, err := scram.Mechanism(scram.SHA256, configs.KafkaUsername, configs.KafkaPassword)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		dialer = &kafka.Dialer{
+			SASLMechanism: mechanism,
+			TLS:           &tls.Config{},
+		}
 	}
-	dialer := &kafka.Dialer{
-		SASLMechanism: mechanism,
-		TLS:           &tls.Config{},
-	}
+
 	// mysql
 	dsn := fmt.Sprintf("%s:%s@%s(%s)/%s?parseTime=true",
 		configs.DBUser, configs.DBPassword, configs.DBProtocol, configs.DBAddr, configs.DBDatabase)
