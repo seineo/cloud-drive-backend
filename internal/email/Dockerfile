@@ -19,8 +19,10 @@ FROM ubuntu:22.04
 # 指定运行时的工作目录
 WORKDIR /app
 
+RUN mkdir -p /app/assets/
+
 COPY --from=builder /app/internal/email/main  /app/
 
-#COPY --from=builder /app/internal/email/  /app/
+COPY --from=builder /app/internal/email/assets/  /app/assets/
 
 CMD ["/app/main"]
