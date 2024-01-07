@@ -2,6 +2,7 @@ trigger:
   paths:
     include:
       - internal/email
+      - internal/common
       - email-pipelines.yml
 
 resources:

@@ -2,6 +2,7 @@ trigger:
   paths:
     include:
       - internal/account
+      - internal/common
       - account-pipelines.yml
 
 resources:
