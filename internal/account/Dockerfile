@@ -9,8 +9,7 @@ WORKDIR /app
 COPY . /app/
 
 # 执行代码编译命令。操作系统参数为linux，编译后的二进制产物命名为main，并存放在当前目录下。
-RUN  cd /app/internal/account && \
-     go env -w GOPROXY=https://goproxy.cn,direct && go build -o main .
+RUN  cd /app/internal/account && go build -o main .
 
 # 选用运行时所用基础镜像（GO语言选择原则：尽量体积小、包含基础linux内容的基础镜像）
 #FROM alpine:3.19.0
