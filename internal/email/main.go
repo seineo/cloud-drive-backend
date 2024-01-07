@@ -31,15 +31,20 @@ func main() {
 
 	emailService := service.NewEmailService(map[string]string{"code": configs.SMTPSender}, emailSender, configs)
 	// kafkaEventManager
-	mechanism, err := scram.Mechanism(scram.SHA256, configs.KafkaUsername, configs.KafkaPassword)
-	if err != nil {
-		log.Fatalln(err)
+	var dialer *kafka.Dialer
+	if configs.KafkaUsername == "" {
+		log.Println("use plain mechanism here")
+		dialer = &kafka.Dialer{}
+	} else {
+		mechanism, err := scram.Mechanism(scram.SHA256, configs.KafkaUsername, configs.KafkaPassword)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		dialer = &kafka.Dialer{
+			SASLMechanism: mechanism,
+			TLS:           &tls.Config{},
+		}
 	}
-	dialer := &kafka.Dialer{
-		SASLMechanism: mechanism,
-		TLS:           &tls.Config{},
-	}
-
 	consumer := kafkaEventManager.NewEventConsumer(dialer, []string{configs.KafkaBroker})
 	producer := kafkaEventManager.NewEventProducer(dialer, []string{configs.KafkaBroker})
 
