@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: only-email
+spec:
+  selector:
+    matchLabels:
+      app: only-email
+  template:
+    metadata:
+      labels:
+        app: only-email
+    spec:
+      containers:
+      - name: only-email
+        image: seineo/only-email
+        resources:
+          limits:
+            memory: "200Mi"
+            cpu: "500m"
