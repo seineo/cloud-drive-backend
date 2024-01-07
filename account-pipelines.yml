@@ -29,7 +29,7 @@ stages:
               repository: "$(image-repo)"
               command: 'buildAndPush'
               tags: '$(Build.BuildNumber)-$(SHORT_COMMIT)'
-              buildContext: './'
+              buildContext: '/'
               Dockerfile: 'internal/account/Dockerfile'
 
           #          - script: |
