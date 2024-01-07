@@ -28,6 +28,7 @@ func NewMQConsumer(configs *config.Config) *MQConsumer {
 	// kafka注入
 	var dialer *kafka.Dialer
 	if configs.KafkaUsername == "" {
+		log.Println("use plain mechanism here")
 		mechanism := plain.Mechanism{}
 		dialer = &kafka.Dialer{
 			SASLMechanism: mechanism,
