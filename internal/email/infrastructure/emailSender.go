@@ -2,6 +2,7 @@ package infrastructure
 
 import (
 	"email/domain/infrastructure"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/gomail.v2"
 )
 
@@ -16,8 +17,9 @@ func (g *GoMailer) SendEmail(from string, to string, subject string, body string
 	m.SetHeader("Subject", subject)
 	m.SetBody("text/html", body)
 	if err := g.dialer.DialAndSend(m); err != nil {
-		return nil
+		return err
 	}
+	logrus.Infof("email sent to %s", to)
 	return nil
 }
 
