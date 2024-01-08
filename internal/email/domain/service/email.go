@@ -32,7 +32,7 @@ func (e *emailService) SendVerificationCode(email string, code string) error {
 	// 读取asset中code email的模板 填充字段
 	tmpl, err := template.ParseFiles("assets/code-email.html")
 	if err != nil {
-		return nil
+		return err
 	}
 	emailContent := CodeEmailContent{
 		Code:        code,
